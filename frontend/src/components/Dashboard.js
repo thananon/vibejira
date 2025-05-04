@@ -56,6 +56,11 @@ const Dashboard = () => {
   const [commentLoading, setCommentLoading] = useState(false);
   const [commentError, setCommentError] = useState(null);
 
+  // State for Summary Cards
+  const [summaryData, setSummaryData] = useState({ triagePending: '-', inProgress: '-', activeP1: '-', completedToday: '-' });
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState(null);
+
   // State for collapsible sections
   const [p1Visible, setP1Visible] = useState(true);
   const [p2Visible, setP2Visible] = useState(true);
@@ -71,6 +76,9 @@ const Dashboard = () => {
 
   // State for Jira Base URL fetched from backend
   const [jiraConfigUrl, setJiraConfigUrl] = useState('');
+
+  // State for Assignee Filtering
+  const [activeAssigneeFilter, setActiveAssigneeFilter] = useState(null); // null for All, or specific name key
 
   // --- Fetch Config --- 
   useEffect(() => {
@@ -94,6 +102,38 @@ const Dashboard = () => {
       }
     };
     fetchConfig();
+  }, []); // Run once on mount
+
+  // --- Fetch Summary Data --- 
+  useEffect(() => {
+    const fetchSummary = async () => {
+      setSummaryLoading(true);
+      setSummaryError(null);
+      try {
+        const url = `${API_BASE_URL}/api/tickets/summary`;
+        console.log(`Fetching summary data from: ${url}`);
+        const response = await fetch(url);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: response.statusText }));
+          throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Failed to fetch summary'}`);
+        }
+        const data = await response.json();
+        console.log('Fetched summary data:', data);
+        setSummaryData({ // Ensure all keys exist even if mocked
+            triagePending: data.triagePending ?? '-',
+            inProgress: data.inProgress ?? '-',
+            activeP1: data.activeP1 ?? '-',
+            completedToday: data.completedToday ?? '-',
+        });
+      } catch (err) {
+        console.error('Fetch summary error:', err);
+        setSummaryError(err.message);
+        // Keep default '-' in summaryData on error
+      } finally {
+        setSummaryLoading(false);
+      }
+    };
+    fetchSummary();
   }, []); // Run once on mount
 
   // --- Fetch Tickets --- 
@@ -129,8 +169,22 @@ const Dashboard = () => {
         }
         // Note: 'all' date filter doesn't add a date clause
 
+        // --- Assignee Filter --- 
+        let assigneeFilterJql = '';
+        if (activeAssigneeFilter === 'avinash') {
+          assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
+        } else if (activeAssigneeFilter === 'marzieh') {
+          assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
+        } else if (activeAssigneeFilter === 'me') {
+          // Assuming the name mapping - might need adjustment based on Jira user format
+          assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
+          // Alternatively, if backend supports currentUser() for PAT context:
+          // assigneeFilterJql = ' AND assignee = currentUser()'; 
+        }
+        // If activeAssigneeFilter is null, no assignee clause is added (shows all)
+
         // Combine JQL parts
-        const finalJql = `${projectAndType} AND ${triageAssignment} AND ${labels}${statusFilterJql}${dateFilterJql} ORDER BY updated DESC`;
+        const finalJql = `${projectAndType} AND ${triageAssignment} AND ${labels}${statusFilterJql}${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
         const encodedJql = encodeURIComponent(finalJql);
         const url = `${API_BASE_URL}/api/tickets?jql=${encodedJql}&maxResults=100`; 
 
@@ -163,7 +217,7 @@ const Dashboard = () => {
 
     fetchTickets(); 
 
-  }, [selectedDateFilter, startDate, endDate, activeButtonFilter]); // Added activeButtonFilter dependency
+  }, [selectedDateFilter, startDate, endDate, activeButtonFilter, activeAssigneeFilter]); // Added activeAssigneeFilter dependency
 
   // --- Fetch Comments --- 
   const fetchComments = async (issueKey) => {
@@ -263,6 +317,11 @@ const Dashboard = () => {
   const handleMainFilterClick = (filterType) => {
     setActiveButtonFilter(filterType);
     // Fetching is handled by useEffect due to state change
+  };
+
+  // Event Handler for Assignee Filter Buttons
+  const handleAssigneeFilterClick = (filterKey) => { // filterKey: null, 'avinash', 'marzieh', 'me'
+    setActiveAssigneeFilter(filterKey);
   };
 
   // --- Render Functions --- 
@@ -395,6 +454,41 @@ const Dashboard = () => {
             </CButtonGroup>
           </div>
 
+          {/* Assignee Filter Buttons */}
+          <div className="mb-3">
+             <span className="me-2">Filter by Assignee:</span>
+             <CButtonGroup role="group" aria-label="Assignee Filter Buttons">
+               <CButton 
+                 color="secondary"
+                 variant={activeAssigneeFilter === null ? undefined : 'outline'} 
+                 onClick={() => handleAssigneeFilterClick(null)}
+               >
+                 All Assignees
+               </CButton>
+               <CButton 
+                 color="secondary"
+                 variant={activeAssigneeFilter === 'avinash' ? undefined : 'outline'} 
+                 onClick={() => handleAssigneeFilterClick('avinash')}
+               >
+                 Avinash
+               </CButton>
+               <CButton 
+                 color="secondary"
+                 variant={activeAssigneeFilter === 'marzieh' ? undefined : 'outline'} 
+                 onClick={() => handleAssigneeFilterClick('marzieh')}
+               >
+                 Marzieh
+               </CButton>
+               <CButton 
+                 color="secondary"
+                 variant={activeAssigneeFilter === 'me' ? undefined : 'outline'} 
+                 onClick={() => handleAssigneeFilterClick('me')}
+               >
+                 Me
+               </CButton>
+             </CButtonGroup>
+           </div>
+
           {selectedDateFilter === 'range' && (
             <CRow className="mb-3 align-items-end">
               <CCol md={3}>
@@ -420,44 +514,53 @@ const Dashboard = () => {
             </CRow>
           )}
 
-          <CRow className="mb-4 text-center">
-            <CCol sm={6} xl={3} className="mb-3 mb-xl-0">
-              <CCard textColor="warning">
-                <CCardBody>
-                  <CIcon icon={cilWarning} size="xl" className="mb-2" />
-                  <div>Triage Pending</div>
-                  <div className="fs-2 fw-semibold">15</div>
-                </CCardBody>
-              </CCard>
-            </CCol>
-            <CCol sm={6} xl={3} className="mb-3 mb-xl-0">
-              <CCard textColor="info">
-                <CCardBody>
-                  <CIcon icon={cilLoopCircular} size="xl" className="mb-2" />
-                  <div>In Progress</div>
-                  <div className="fs-2 fw-semibold">28</div>
-                </CCardBody>
-              </CCard>
-            </CCol>
-            <CCol sm={6} xl={3} className="mb-3 mb-sm-0">
-              <CCard textColor="danger">
-                <CCardBody>
-                  <CIcon icon={cilFire} size="xl" className="mb-2" />
-                  <div>Active P1</div>
-                  <div className="fs-2 fw-semibold">3</div>
-                </CCardBody>
-              </CCard>
-            </CCol>
-            <CCol sm={6} xl={3}>
-              <CCard textColor="success">
-                <CCardBody>
-                  <CIcon icon={cilCheckCircle} size="xl" className="mb-2" />
-                  <div>Completed (Today)</div>
-                  <div className="fs-2 fw-semibold">8</div>
-                </CCardBody>
-              </CCard>
-            </CCol>
-          </CRow>
+          {/* Summary Cards Row */}
+          {summaryLoading && <p>Loading summary...</p>}
+          {summaryError && <p className="text-danger">Error loading summary: {summaryError}</p>}
+          {!summaryLoading && !summaryError && (
+            <CRow className="mb-4 text-center">
+              <CCol sm={6} xl={3} className="mb-3 mb-xl-0">
+                <CCard textColor="warning">
+                  <CCardBody>
+                    <CIcon icon={cilWarning} size="xl" className="mb-2" />
+                    <div>Triage Pending</div>
+                    {/* Use fetched data */}
+                    <div className="fs-2 fw-semibold">{summaryData.triagePending}</div> 
+                  </CCardBody>
+                </CCard>
+              </CCol>
+              <CCol sm={6} xl={3} className="mb-3 mb-xl-0">
+                <CCard textColor="info">
+                  <CCardBody>
+                    <CIcon icon={cilLoopCircular} size="xl" className="mb-2" />
+                    <div>In Progress</div>
+                     {/* Use fetched/mock data */}
+                    <div className="fs-2 fw-semibold">{summaryData.inProgress}</div>
+                  </CCardBody>
+                </CCard>
+              </CCol>
+              <CCol sm={6} xl={3} className="mb-3 mb-sm-0">
+                <CCard textColor="danger">
+                  <CCardBody>
+                    <CIcon icon={cilFire} size="xl" className="mb-2" />
+                    <div>Active P1</div>
+                     {/* Use fetched/mock data */}
+                    <div className="fs-2 fw-semibold">{summaryData.activeP1}</div>
+                  </CCardBody>
+                </CCard>
+              </CCol>
+              <CCol sm={6} xl={3}>
+                <CCard textColor="success">
+                  <CCardBody>
+                    <CIcon icon={cilCheckCircle} size="xl" className="mb-2" />
+                    <div>Completed (Today)</div>
+                     {/* Use fetched/mock data */}
+                    <div className="fs-2 fw-semibold">{summaryData.completedToday}</div>
+                  </CCardBody>
+                </CCard>
+              </CCol>
+            </CRow>
+          )}
 
           {loading && <p>Loading tickets...</p>}
           {error && <p style={{ color: 'red' }}>Error fetching tickets: {error}</p>}
