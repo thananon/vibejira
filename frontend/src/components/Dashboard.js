@@ -72,7 +72,7 @@ const Dashboard = () => {
   const [endDate, setEndDate] = useState('');
 
   // State for main button filtering - Set default to 'ongoing'
-  const [activeButtonFilter, setActiveButtonFilter] = useState('ongoing'); // 'ongoing', 'triagePending', 'done', 'rejected'
+  const [activeButtonFilter, setActiveButtonFilter] = useState('ongoing'); // 'ongoing', 'triagePending', 'waiting', 'done', 'rejected'
 
   // State for Jira Base URL fetched from backend
   const [jiraConfigUrl, setJiraConfigUrl] = useState('');
@@ -110,7 +110,17 @@ const Dashboard = () => {
       setSummaryLoading(true);
       setSummaryError(null);
       try {
-        const url = `${API_BASE_URL}/api/tickets/summary`;
+        // Build query params from state
+        const params = new URLSearchParams();
+        if (activeButtonFilter) params.append('activeButtonFilter', activeButtonFilter);
+        if (selectedDateFilter) params.append('selectedDateFilter', selectedDateFilter);
+        if (activeAssigneeFilter) params.append('activeAssigneeFilter', activeAssigneeFilter);
+        if (selectedDateFilter === 'range' && startDate) params.append('startDate', startDate);
+        if (selectedDateFilter === 'range' && endDate) params.append('endDate', endDate);
+        
+        const queryString = params.toString();
+        const url = `${API_BASE_URL}/api/tickets/summary${queryString ? '?' + queryString : ''}`;
+        
         console.log(`Fetching summary data from: ${url}`);
         const response = await fetch(url);
         if (!response.ok) {
@@ -119,22 +129,31 @@ const Dashboard = () => {
         }
         const data = await response.json();
         console.log('Fetched summary data:', data);
-        setSummaryData({ // Ensure all keys exist even if mocked
+        setSummaryData({ 
             triagePending: data.triagePending ?? '-',
             inProgress: data.inProgress ?? '-',
             activeP1: data.activeP1 ?? '-',
-            completedToday: data.completedToday ?? '-',
+            completedToday: data.completedToday ?? '-', // Frontend uses this key
         });
       } catch (err) {
         console.error('Fetch summary error:', err);
         setSummaryError(err.message);
-        // Keep default '-' in summaryData on error
       } finally {
         setSummaryLoading(false);
       }
     };
-    fetchSummary();
-  }, []); // Run once on mount
+    
+    // Don't fetch summary if range is selected but dates are incomplete
+    if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
+      console.log("Range selected for summary, waiting for both dates.");
+      // Optionally reset summary data or show placeholders
+      // setSummaryData({ triagePending: '-', inProgress: '-', activeP1: '-', completedToday: '-' });
+      setSummaryLoading(false); // Prevent infinite loading state
+    } else {
+        fetchSummary();
+    }
+
+  }, [activeButtonFilter, selectedDateFilter, startDate, endDate, activeAssigneeFilter]); // Add all relevant filters as dependencies
 
   // --- Fetch Tickets --- 
   useEffect(() => {
@@ -149,17 +168,18 @@ const Dashboard = () => {
         let finalJql = '';
 
         if (activeButtonFilter === 'triagePending') {
-           // Special JQL for Triage Pending - Ignores Status, Assignee, Date
            finalJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_PENDING ORDER BY updated DESC`;
+        } else if (activeButtonFilter === 'waiting') {
+           // Special JQL for Waiting - Ignores Status, Assignee, Date
+           finalJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_NEED_MORE_INFO ORDER BY updated DESC`;
         } else {
           // Logic for 'ongoing', 'done', and 'rejected' filters (which include other filters)
-          const labels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`; // Base label filter remains
+          const labels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`; 
 
           let statusFilterJql = '';
           if (activeButtonFilter === 'ongoing') {
             statusFilterJql = ' AND status in (Opened, Assessed, Analyzed)';
           } else if (activeButtonFilter === 'done') {
-            // Updated Done filter to exclude Rejected
             statusFilterJql = ' AND status in (Implemented, Closed)'; 
           } else if (activeButtonFilter === 'rejected') {
             statusFilterJql = ' AND status = Rejected';
@@ -187,7 +207,6 @@ const Dashboard = () => {
             assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
           }
           
-          // Combine JQL parts for ongoing/done/rejected views
           finalJql = `${projectAndType} AND ${triageAssignment} AND ${labels}${statusFilterJql}${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
         }
 
@@ -278,7 +297,7 @@ const Dashboard = () => {
     const upperCaseStatus = statusName.toUpperCase();
     if (upperCaseStatus === 'REJECTED') return 'danger';
     if (upperCaseStatus === 'OPENED') return 'warning';
-    if (upperCaseStatus === 'ASSESSED') return 'info'; 
+    if (upperCaseStatus === 'ASSESSED') return 'warning'; 
     if (upperCaseStatus === 'ANALYZED') return 'success';
     if (upperCaseStatus === 'IMPLEMENTED' || upperCaseStatus === 'CLOSED') return 'primary';
     return 'secondary'; // Default color
@@ -438,6 +457,13 @@ const Dashboard = () => {
                 Triage Pending
               </CButton>
               <CButton 
+                color="info" 
+                variant={activeButtonFilter === 'waiting' ? undefined : 'outline'}
+                onClick={() => handleMainFilterClick('waiting')}
+              >
+                Waiting
+              </CButton>
+              <CButton 
                 color="success" 
                 variant={activeButtonFilter === 'done' ? undefined : 'outline'}
                 onClick={() => handleMainFilterClick('done')}
@@ -455,7 +481,7 @@ const Dashboard = () => {
           </div>
 
           {/* Date Filter Buttons - Conditionally hide if Triage Pending selected */}
-          {activeButtonFilter !== 'triagePending' && (
+          {activeButtonFilter !== 'triagePending' && activeButtonFilter !== 'waiting' && (
             <div className="mb-3">
               <span className="me-2">Filter by Updated Date:</span>
               <CButtonGroup role="group" aria-label="Date Filter Buttons">
@@ -492,7 +518,7 @@ const Dashboard = () => {
           )}
 
           {/* Assignee Filter Buttons - Conditionally hide if Triage Pending selected */}
-          {activeButtonFilter !== 'triagePending' && (
+          {activeButtonFilter !== 'triagePending' && activeButtonFilter !== 'waiting' && (
             <div className="mb-3">
               <span className="me-2">Filter by Assignee:</span>
               <CButtonGroup role="group" aria-label="Assignee Filter Buttons">
@@ -529,7 +555,7 @@ const Dashboard = () => {
           )}
 
            {/* Conditional Date Range Inputs - Conditionally hide if Triage Pending selected */} 
-           {activeButtonFilter !== 'triagePending' && selectedDateFilter === 'range' && (
+           {activeButtonFilter !== 'triagePending' && activeButtonFilter !== 'waiting' && selectedDateFilter === 'range' && (
              <CRow className="mb-3 align-items-end">
                 <CCol md={3}>
                    <CFormLabel htmlFor="startDate">From Date:</CFormLabel>

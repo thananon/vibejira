@@ -10,32 +10,70 @@ const asyncHandler = fn => (req, res, next) =>
 
 exports.getDashboardSummary = asyncHandler(async (req, res) => {
   try {
-    // Define the base query parts (can be adjusted based on overall dashboard scope)
+    // Extract filter parameters from query string
+    const { activeButtonFilter, selectedDateFilter, startDate, endDate, activeAssigneeFilter } = req.query;
+
+    // --- Base JQL Construction (Common filters) --- 
     const projectAndType = `project = SWDEV AND issuetype = Defect`;
     const triageAssignment = `"Triage Assignment" = "[1637333]"`;
+    const baseLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`; // Assuming this is the relevant universe for most cards
 
-    // --- Triage Pending Count --- 
+    let dateFilterJql = '';
+    if (selectedDateFilter === 'week') {
+      dateFilterJql = ' AND updated >= -7d'; 
+    } else if (selectedDateFilter === 'month') {
+      dateFilterJql = ' AND updated >= -30d';
+    } else if (selectedDateFilter === 'range' && startDate && endDate) {
+      dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
+    }
+
+    let assigneeFilterJql = '';
+    if (activeAssigneeFilter === 'avinash') {
+      assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
+    } else if (activeAssigneeFilter === 'marzieh') {
+      assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
+    } else if (activeAssigneeFilter === 'me') {
+      assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
+    }
+
+    // Base JQL combining project, assignment, labels, date, and assignee filters
+    // Note: Triage Pending doesn't use all these base filters
+    const baseFilterJql = `${projectAndType} AND ${triageAssignment} AND ${baseLabels}${assigneeFilterJql}${dateFilterJql}`;
+    
+    // --- Calculate Counts --- 
+
+    // Triage Pending (Specific JQL - Ignores date/assignee/base labels filter)
     const triagePendingJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_PENDING`;
-    const triagePendingResult = await jiraService.searchIssues(triagePendingJql, { maxResults: 0 }); // Fetch only count
+    const triagePendingResult = await jiraService.searchIssues(triagePendingJql, { maxResults: 0 });
     const triagePendingCount = triagePendingResult.total || 0;
 
-    // --- Placeholder for other counts --- 
-    // TODO: Implement similar JQL searches for other cards (In Progress, Active P1, Completed Today)
-    const inProgressCount = 28; // Mock
-    const activeP1Count = 3;    // Mock
-    const completedTodayCount = 8; // Mock
+    // In Progress (Uses base filters + status)
+    const inProgressJql = `${baseFilterJql} AND status in (Opened, Assessed, Analyzed)`;
+    const inProgressResult = await jiraService.searchIssues(inProgressJql, { maxResults: 0 });
+    const inProgressCount = inProgressResult.total || 0;
+
+    // Active P1 (Uses base filters + status + priority)
+    // Assuming 'P1' is the correct key/name for JQL priority filtering
+    const activeP1Jql = `${baseFilterJql} AND priority = P1 AND status in (Opened, Assessed, Analyzed)`;
+    const activeP1Result = await jiraService.searchIssues(activeP1Jql, { maxResults: 0 });
+    const activeP1Count = activeP1Result.total || 0;
+
+    // Completed (Uses base filters + status)
+    const completedJql = `${baseFilterJql} AND status in (Implemented, Closed)`;
+    const completedResult = await jiraService.searchIssues(completedJql, { maxResults: 0 });
+    const completedCount = completedResult.total || 0;
 
     // Return the counts
     res.json({
       triagePending: triagePendingCount,
-      inProgress: inProgressCount,    
-      activeP1: activeP1Count,       
-      completedToday: completedTodayCount, 
+      inProgress: inProgressCount,
+      activeP1: activeP1Count,
+      completedToday: completedCount, // Renaming key to match frontend expectation for now 
+                                       // TODO: Align frontend/backend naming (e.g., use 'completed')
     });
 
   } catch (error) {
     console.error("Error fetching dashboard summary data:", error);
-    // Send a generic error response or re-throw for global handler
     res.status(500).json({ message: "Failed to fetch dashboard summary data" });
   }
 });
