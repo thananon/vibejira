@@ -6,9 +6,11 @@ const apiRouter = require('./routes');
 const app = express();
 
 // Basic Middleware
-app.use(cors({ 
-  origin: config.frontendOrigin,
-}));
+// Apply CORS middleware - Allow ALL origins (use with caution!)
+app.use(cors()); 
+// app.use(cors({ 
+//   origin: config.frontendOrigin, // Previous configuration
+// }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
