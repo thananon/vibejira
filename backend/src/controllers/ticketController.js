@@ -173,4 +173,64 @@ exports.getHistory = asyncHandler(async (req, res) => {
   const { issueKey } = req.params;
   const issueData = await jiraService.getIssue(issueKey, { expand: 'changelog' });
   res.json(issueData);
+});
+
+// New function to update ticket state based on labels
+exports.updateTicketState = asyncHandler(async (req, res) => {
+  const { issueKey } = req.params;
+  const { targetState } // Expected: 'pending', 'completed', 'moreInfo', 'rejected'
+    = req.body;
+
+  if (!targetState) {
+    return res.status(400).json({ message: 'Target state is required.' });
+  }
+
+  const labelsToRemove = [
+    'RCCL_TRIAGE_PENDING',
+    'RCCL_TRIAGE_COMPLETED',
+    'RCCL_TRIAGE_NEED_MORE_INFO',
+    'RCCL_TRIAGE_REJECTED'
+  ];
+
+  let labelToAdd = '';
+  switch (targetState) {
+    case 'pending':
+      labelToAdd = 'RCCL_TRIAGE_PENDING';
+      break;
+    case 'completed':
+      labelToAdd = 'RCCL_TRIAGE_COMPLETED';
+      break;
+    case 'moreInfo':
+      labelToAdd = 'RCCL_TRIAGE_NEED_MORE_INFO';
+      break;
+    case 'rejected': // Added for potential future use
+       labelToAdd = 'RCCL_TRIAGE_REJECTED';
+       break;
+    default:
+      return res.status(400).json({ message: 'Invalid target state.' });
+  }
+
+  try {
+    // Construct the update payload to remove old labels and add the new one
+    const updateOperations = labelsToRemove.map(label => ({ remove: label }));
+    updateOperations.push({ add: labelToAdd });
+
+    const updatePayload = {
+      update: {
+        labels: updateOperations,
+      },
+    };
+
+    // Call the Jira service to update the issue
+    await jiraService.updateIssue(issueKey, updatePayload);
+    
+    // Respond with success (no content)
+    res.status(204).send();
+
+  } catch (error) {
+     // Log the error on the server
+     console.error(`Failed to update state for issue ${issueKey} to ${targetState}:`, error);
+     // Send a generic error response to the client
+     res.status(500).json({ message: `Failed to update ticket state: ${error.message}` });
+  }
 }); 

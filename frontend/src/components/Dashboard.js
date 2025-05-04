@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   CButton,
   CCard,
@@ -22,6 +22,8 @@ import {
   CFormLabel,
   CSpinner,
   CBadge,
+  CFormTextarea,
+  CAlert,
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
 import {
@@ -37,6 +39,8 @@ import {
   cilArrowTop,
   cilArrowBottom,
   cilXCircle,
+  cilInfo,
+  cilBan,
 } from '@coreui/icons';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -85,6 +89,11 @@ const Dashboard = () => {
 
   // State for Table Sorting
   const [sortConfig, setSortConfig] = useState({ key: 'fields.updated', direction: 'descending' });
+
+  // State for Sidebar Actions
+  const [isUpdatingState, setIsUpdatingState] = useState(false);
+  const [updateStateError, setUpdateStateError] = useState(null);
+  const [updateStateSuccess, setUpdateStateSuccess] = useState(false);
 
   // --- Fetch Config --- 
   useEffect(() => {
@@ -163,93 +172,93 @@ const Dashboard = () => {
   }, [activeButtonFilter, selectedDateFilter, startDate, endDate, activeAssigneeFilter]); // Add all relevant filters as dependencies
 
   // --- Fetch Tickets --- 
-  useEffect(() => {
-    const fetchTickets = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Base JQL parts
-        const projectAndType = `project = SWDEV AND issuetype = Defect`;
-        const triageAssignment = `"Triage Assignment" = "[1637333]"`;
+  const fetchTickets = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Base JQL parts
+      const projectAndType = `project = SWDEV AND issuetype = Defect`;
+      const triageAssignment = `"Triage Assignment" = "[1637333]"`;
 
-        let finalJql = '';
+      let finalJql = '';
 
-        if (activeButtonFilter === 'triagePending') {
-           finalJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_PENDING ORDER BY updated DESC`;
-        } else if (activeButtonFilter === 'waiting') {
-           // Special JQL for Waiting - Ignores Status, Assignee, Date
-           finalJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_NEED_MORE_INFO ORDER BY updated DESC`;
-        } else {
-          // Logic for 'ongoing', 'done', and 'rejected' filters (which include other filters)
-          const labels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`; 
+      if (activeButtonFilter === 'triagePending') {
+         finalJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_PENDING ORDER BY updated DESC`;
+      } else if (activeButtonFilter === 'waiting') {
+         // Special JQL for Waiting - Ignores Status, Assignee, Date
+         finalJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_NEED_MORE_INFO ORDER BY updated DESC`;
+      } else {
+        // Logic for 'ongoing', 'done', and 'rejected' filters (which include other filters)
+        const labels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`; 
 
-          let statusFilterJql = '';
-          if (activeButtonFilter === 'ongoing') {
-            statusFilterJql = ' AND status in (Opened, Assessed, Analyzed)';
-          } else if (activeButtonFilter === 'done') {
-            statusFilterJql = ' AND status in (Implemented, Closed)'; 
-          } else if (activeButtonFilter === 'rejected') {
-            statusFilterJql = ' AND status = Rejected';
-          }
-
-          let dateFilterJql = '';
-          if (selectedDateFilter === 'week') {
-            dateFilterJql = ' AND updated >= -7d'; 
-          } else if (selectedDateFilter === 'month') {
-            dateFilterJql = ' AND updated >= -30d';
-          } else if (selectedDateFilter === 'range' && startDate && endDate) {
-            dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
-          } else if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
-             console.log("Range selected, waiting for both dates.");
-             setLoading(false); 
-             return; 
-          }
-
-          let assigneeFilterJql = '';
-          if (activeAssigneeFilter === 'avinash') {
-            assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
-          } else if (activeAssigneeFilter === 'marzieh') {
-            assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
-          } else if (activeAssigneeFilter === 'me') {
-            assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
-          }
-          
-          finalJql = `${projectAndType} AND ${triageAssignment} AND ${labels}${statusFilterJql}${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
+        let statusFilterJql = '';
+        if (activeButtonFilter === 'ongoing') {
+          statusFilterJql = ' AND status in (Opened, Assessed, Analyzed)';
+        } else if (activeButtonFilter === 'done') {
+          statusFilterJql = ' AND status in (Implemented, Closed)'; 
+        } else if (activeButtonFilter === 'rejected') {
+          statusFilterJql = ' AND status = Rejected';
         }
 
-        const encodedJql = encodeURIComponent(finalJql);
-        const url = `${API_BASE_URL}/api/tickets?jql=${encodedJql}&maxResults=100`; 
+        let dateFilterJql = '';
+        if (selectedDateFilter === 'week') {
+          dateFilterJql = ' AND updated >= -7d'; 
+        } else if (selectedDateFilter === 'month') {
+          dateFilterJql = ' AND updated >= -30d';
+        } else if (selectedDateFilter === 'range' && startDate && endDate) {
+          dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
+        } else if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
+           console.log("Range selected for ticket list, waiting for both dates.");
+           setLoading(false); 
+           return; // Don't fetch if range is incomplete
+        }
 
-        console.log(`Fetching tickets with JQL: ${finalJql}`); 
-        console.log(`Fetching tickets from URL: ${url}`);
-
-        const response = await fetch(url);
+        let assigneeFilterJql = '';
+        if (activeAssigneeFilter === 'avinash') {
+          assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
+        } else if (activeAssigneeFilter === 'marzieh') {
+          assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
+        } else if (activeAssigneeFilter === 'me') {
+          assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
+        }
         
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: response.statusText }));
-          throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Failed to fetch tickets'}`);
-        }
-        const data = await response.json();
-        console.log('Fetched data:', data);
-
-        if (data && Array.isArray(data.issues)) {
-          setTickets(data.issues); 
-        } else {
-          console.error('Unexpected API response structure:', data);
-          throw new Error('Received unexpected data structure from API.');
-        }
-      } catch (err) {
-        console.error('Fetch error:', err);
-        setError(err.message);
-        setTickets([]); 
-      } finally {
-        setLoading(false);
+        finalJql = `${projectAndType} AND ${triageAssignment} AND ${labels}${statusFilterJql}${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
       }
-    };
 
-    fetchTickets(); 
+      const encodedJql = encodeURIComponent(finalJql);
+      const url = `${API_BASE_URL}/api/tickets?jql=${encodedJql}&maxResults=100`; 
 
-  }, [selectedDateFilter, startDate, endDate, activeButtonFilter, activeAssigneeFilter]); // Dependencies remain the same
+      console.log(`Fetching tickets with JQL: ${finalJql}`); 
+      console.log(`Fetching tickets from URL: ${url}`);
+
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Failed to fetch tickets'}`);
+      }
+      const data = await response.json();
+      console.log('Fetched data:', data);
+
+      if (data && Array.isArray(data.issues)) {
+        setTickets(data.issues); 
+      } else {
+        console.error('Unexpected API response structure:', data);
+        throw new Error('Received unexpected data structure from API.');
+      }
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError(err.message);
+      setTickets([]); 
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDateFilter, startDate, endDate, activeButtonFilter, activeAssigneeFilter]); // Keep dependencies
+
+  // useEffect to call fetchTickets
+  useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]); // Now depends on the stable callback
 
   // --- Fetch Comments --- 
   const fetchComments = async (issueKey) => {
@@ -329,33 +338,41 @@ const Dashboard = () => {
 
   // --- Sorting Logic using useMemo --- 
   const sortData = (items, config) => {
-    const sortedItems = [...items]; // Create a mutable copy
+    const sortedItems = [...items]; 
     if (config.key !== null) {
       sortedItems.sort((a, b) => {
-        // Helper to safely access nested properties
         const getNestedValue = (obj, key) => key.split('.').reduce((o, k) => (o || {})[k], obj);
         
-        let aValue = getNestedValue(a, config.key);
-        let bValue = getNestedValue(b, config.key);
+        let aValue, bValue;
 
-        // Handle specific types (dates need comparison as numbers or use date-fns compareAsc/Desc)
-        if (config.key === 'fields.created' || config.key === 'fields.updated') {
+        // Handle state sorting based on derived text
+        if (config.key === 'state') {
+          aValue = getStateFromLabels(getNestedValue(a, 'fields.labels')).text;
+          bValue = getStateFromLabels(getNestedValue(b, 'fields.labels')).text;
+        } 
+        // Handle date sorting
+        else if (config.key === 'fields.created' || config.key === 'fields.updated') {
+          aValue = getNestedValue(a, config.key);
+          bValue = getNestedValue(b, config.key);
           aValue = aValue ? new Date(aValue).getTime() : null;
           bValue = bValue ? new Date(bValue).getTime() : null;
+        } 
+        // Default: Get nested value directly
+        else {
+            aValue = getNestedValue(a, config.key);
+            bValue = getNestedValue(b, config.key);
         }
 
-        // Handle null/undefined consistently (e.g., push to bottom)
+        // Handle null/undefined consistently
         if (aValue === null || aValue === undefined) return 1;
         if (bValue === null || bValue === undefined) return -1;
 
-        // Actual comparison
-        if (aValue < bValue) {
-          return config.direction === 'ascending' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return config.direction === 'ascending' ? 1 : -1;
-        }
-        return 0;
+        // Actual comparison (case-insensitive for strings)
+        const compareResult = typeof aValue === 'string' && typeof bValue === 'string'
+          ? aValue.localeCompare(bValue, undefined, { sensitivity: 'base' })
+          : (aValue < bValue ? -1 : (aValue > bValue ? 1 : 0));
+
+        return config.direction === 'ascending' ? compareResult : -compareResult;
       });
     }
     return sortedItems;
@@ -414,6 +431,45 @@ const Dashboard = () => {
     setSortConfig({ key, direction });
   };
 
+  // --- Handler for State Update --- 
+  const handleUpdateTicketState = async (newState) => {
+    if (!selectedTicketKey) return;
+
+    setIsUpdatingState(true);
+    setUpdateStateError(null);
+    setUpdateStateSuccess(false);
+
+    try {
+      const url = `${API_BASE_URL}/api/tickets/${selectedTicketKey}/state`;
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ targetState: newState }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Failed to update state'}`);
+      }
+      
+      setUpdateStateSuccess(true);
+      // Refresh data after successful update
+      fetchTickets(); // Re-fetch the main ticket list
+      fetchComments(selectedTicketKey); // Re-fetch comments for the current ticket
+      // Optionally close sidebar or provide visual feedback
+       setTimeout(() => setUpdateStateSuccess(false), 3000); // Hide success message after 3s
+
+    } catch (err) {
+      console.error(`Error updating state to ${newState}:`, err);
+      setUpdateStateError(err.message);
+       setTimeout(() => setUpdateStateError(null), 5000); // Hide error message after 5s
+    } finally {
+      setIsUpdatingState(false);
+    }
+  };
+
   // --- Render Functions --- 
   const renderTable = (data, title, isVisible, toggleVisibility) => {
     // Use jiraConfigUrl state variable here
@@ -442,8 +498,8 @@ const Dashboard = () => {
                   <CTableHeaderCell scope="col" onClick={() => requestSort('fields.summary')} style={{ cursor: 'pointer' }}>
                      Summary <SortIcon columnKey="fields.summary" />
                   </CTableHeaderCell>
-                  <CTableHeaderCell scope="col" onClick={() => requestSort('fields.labels')} style={{ cursor: 'pointer' }}> {/* Sorting by label array might be tricky, using first label for demo */}
-                     State <SortIcon columnKey="fields.labels" />
+                  <CTableHeaderCell scope="col" onClick={() => requestSort('state')} style={{ cursor: 'pointer' }}>
+                     State <SortIcon columnKey="state" />
                   </CTableHeaderCell> 
                   <CTableHeaderCell scope="col" onClick={() => requestSort('fields.status.name')} style={{ cursor: 'pointer' }}>
                      Status <SortIcon columnKey="fields.status.name" />
@@ -730,17 +786,48 @@ const Dashboard = () => {
             </p>
           )}
           
-          <div className="mb-3">
-            <CButton color="primary" className="me-2" disabled>
-              <CIcon icon={cilCommentBubble} className="me-1"/> Add Comment
+          {/* Action Buttons */}
+          <div className="mb-3 d-flex flex-wrap gap-2"> {/* Use flex-wrap and gap */}
+            {/* TODO: Implement Add Comment */} 
+             <CButton color="primary" className="me-2" disabled> 
+               <CIcon icon={cilCommentBubble} className="me-1"/> Add Comment
+             </CButton>
+            
+            {/* State Change Buttons */}
+            <CButton 
+              color="warning" 
+              onClick={() => handleUpdateTicketState('pending')}
+              disabled={isUpdatingState}
+            >
+              <CIcon icon={cilWarning} className="me-1" /> Send to Triage
             </CButton>
-            <CButton color="secondary" className="me-2" disabled>
-              <CIcon icon={cilTags} className="me-1" /> Add Label
+            <CButton 
+              color="success" 
+              onClick={() => handleUpdateTicketState('completed')}
+              disabled={isUpdatingState}
+            >
+              <CIcon icon={cilCheckCircle} className="me-1" /> Triage Complete
             </CButton>
+             <CButton 
+              color="info" 
+              onClick={() => handleUpdateTicketState('moreInfo')}
+              disabled={isUpdatingState}
+            >
+              <CIcon icon={cilInfo} className="me-1" /> More Info Needed
+            </CButton>
+            {/* Add Reject button if needed later */}
+            {/* <CButton color="danger" onClick={() => handleUpdateTicketState('rejected')} disabled={isUpdatingState}><CIcon icon={cilBan} className="me-1" /> Reject</CButton> */}
+
+            {/* TODO: Implement Refresh */} 
             <CButton color="light" disabled>
               <CIcon icon={cilReload} className="me-1" /> Refresh
             </CButton>
           </div>
+
+          {/* Status Messages for State Update */}
+          {isUpdatingState && <CSpinner size="sm" className="me-2"/>}
+          {updateStateSuccess && <CAlert color="success" className="d-inline-block p-2">State updated successfully!</CAlert>}
+          {updateStateError && <CAlert color="danger" className="d-inline-block p-2">Error: {updateStateError}</CAlert>}
 
           <h5 className="mt-4">Comments</h5>
           {commentLoading && (

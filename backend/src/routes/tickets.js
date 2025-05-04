@@ -21,4 +21,7 @@ router.put('/:issueKey/labels', ticketController.addLabel);
 // Route to get history for a specific ticket
 router.get('/:issueKey/history', ticketController.getHistory);
 
+// Route to update the state label for a specific ticket
+router.put('/:issueKey/state', ticketController.updateTicketState);
+
 module.exports = router; 
