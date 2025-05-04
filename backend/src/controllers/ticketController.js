@@ -53,8 +53,8 @@ exports.getDashboardSummary = asyncHandler(async (req, res) => {
     const inProgressCount = inProgressResult.total || 0;
 
     // Active P1 (Uses base filters + status + priority)
-    // Assuming 'P1' is the correct key/name for JQL priority filtering
-    const activeP1Jql = `${baseFilterJql} AND priority = P1 AND status in (Opened, Assessed, Analyzed)`;
+    // Use exact priority name, quoted because it contains spaces/parentheses
+    const activeP1Jql = `${baseFilterJql} AND priority = "P1 (Gating)" AND status in (Opened, Assessed, Analyzed)`;
     const activeP1Result = await jiraService.searchIssues(activeP1Jql, { maxResults: 0 });
     const activeP1Count = activeP1Result.total || 0;
 
@@ -63,6 +63,11 @@ exports.getDashboardSummary = asyncHandler(async (req, res) => {
     const completedResult = await jiraService.searchIssues(completedJql, { maxResults: 0 });
     const completedCount = completedResult.total || 0;
 
+    // Rejected (Uses base filters + status)
+    const rejectedJql = `${baseFilterJql} AND status = Rejected`;
+    const rejectedResult = await jiraService.searchIssues(rejectedJql, { maxResults: 0 });
+    const rejectedCount = rejectedResult.total || 0;
+
     // Return the counts
     res.json({
       triagePending: triagePendingCount,
@@ -70,6 +75,7 @@ exports.getDashboardSummary = asyncHandler(async (req, res) => {
       activeP1: activeP1Count,
       completedToday: completedCount, // Renaming key to match frontend expectation for now 
                                        // TODO: Align frontend/backend naming (e.g., use 'completed')
+      rejected: rejectedCount,        // Added rejected count
     });
 
   } catch (error) {

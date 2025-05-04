@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   CButton,
   CCard,
@@ -34,6 +34,9 @@ import {
   cilLoopCircular,
   cilFire,
   cilCheckCircle,
+  cilArrowTop,
+  cilArrowBottom,
+  cilXCircle,
 } from '@coreui/icons';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -57,7 +60,7 @@ const Dashboard = () => {
   const [commentError, setCommentError] = useState(null);
 
   // State for Summary Cards
-  const [summaryData, setSummaryData] = useState({ triagePending: '-', inProgress: '-', activeP1: '-', completedToday: '-' });
+  const [summaryData, setSummaryData] = useState({ triagePending: '-', inProgress: '-', activeP1: '-', completedToday: '-', rejected: '-' });
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState(null);
 
@@ -79,6 +82,9 @@ const Dashboard = () => {
 
   // State for Assignee Filtering
   const [activeAssigneeFilter, setActiveAssigneeFilter] = useState(null); // null for All, or specific name key
+
+  // State for Table Sorting
+  const [sortConfig, setSortConfig] = useState({ key: 'fields.updated', direction: 'descending' });
 
   // --- Fetch Config --- 
   useEffect(() => {
@@ -133,7 +139,8 @@ const Dashboard = () => {
             triagePending: data.triagePending ?? '-',
             inProgress: data.inProgress ?? '-',
             activeP1: data.activeP1 ?? '-',
-            completedToday: data.completedToday ?? '-', // Frontend uses this key
+            completedToday: data.completedToday ?? '-',
+            rejected: data.rejected ?? '-',
         });
       } catch (err) {
         console.error('Fetch summary error:', err);
@@ -320,6 +327,44 @@ const Dashboard = () => {
   const p2Tickets = tickets.filter(ticket => getPriorityCategory(ticket) === 'P2');
   const otherTickets = tickets.filter(ticket => getPriorityCategory(ticket) === 'Other');
 
+  // --- Sorting Logic using useMemo --- 
+  const sortData = (items, config) => {
+    const sortedItems = [...items]; // Create a mutable copy
+    if (config.key !== null) {
+      sortedItems.sort((a, b) => {
+        // Helper to safely access nested properties
+        const getNestedValue = (obj, key) => key.split('.').reduce((o, k) => (o || {})[k], obj);
+        
+        let aValue = getNestedValue(a, config.key);
+        let bValue = getNestedValue(b, config.key);
+
+        // Handle specific types (dates need comparison as numbers or use date-fns compareAsc/Desc)
+        if (config.key === 'fields.created' || config.key === 'fields.updated') {
+          aValue = aValue ? new Date(aValue).getTime() : null;
+          bValue = bValue ? new Date(bValue).getTime() : null;
+        }
+
+        // Handle null/undefined consistently (e.g., push to bottom)
+        if (aValue === null || aValue === undefined) return 1;
+        if (bValue === null || bValue === undefined) return -1;
+
+        // Actual comparison
+        if (aValue < bValue) {
+          return config.direction === 'ascending' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return config.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortedItems;
+  };
+
+  const sortedP1Tickets = useMemo(() => sortData(p1Tickets, sortConfig), [p1Tickets, sortConfig]);
+  const sortedP2Tickets = useMemo(() => sortData(p2Tickets, sortConfig), [p2Tickets, sortConfig]);
+  const sortedOtherTickets = useMemo(() => sortData(otherTickets, sortConfig), [otherTickets, sortConfig]);
+
   // --- Event Handlers --- 
   const handleRowClick = (ticket) => {
     setSelectedTicketKey(ticket.key); 
@@ -360,9 +405,26 @@ const Dashboard = () => {
     setActiveAssigneeFilter(filterKey);
   };
 
+  // Event Handler for Sorting
+  const requestSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
   // --- Render Functions --- 
   const renderTable = (data, title, isVisible, toggleVisibility) => {
     // Use jiraConfigUrl state variable here
+    // Helper to render sort icon
+    const SortIcon = ({ columnKey }) => {
+      if (sortConfig.key !== columnKey) {
+        return null; // No icon if not the sorted column
+      }
+      return sortConfig.direction === 'ascending' ? <CIcon icon={cilArrowTop} /> : <CIcon icon={cilArrowBottom} />;
+    };
+
     return (
       <div className="mb-4">
         <h4 onClick={toggleVisibility} style={{ cursor: 'pointer' }} className="d-flex justify-content-between align-items-center">
@@ -374,34 +436,43 @@ const Dashboard = () => {
             <CTable hover responsive bordered small className="mt-2">
               <CTableHead color="light">
                 <CTableRow>
-                  <CTableHeaderCell scope="col">Key</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Summary</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">State</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Status</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Assignee</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Updated</CTableHeaderCell>
+                  <CTableHeaderCell scope="col" onClick={() => requestSort('key')} style={{ cursor: 'pointer' }}>
+                     Key <SortIcon columnKey="key" />
+                  </CTableHeaderCell>
+                  <CTableHeaderCell scope="col" onClick={() => requestSort('fields.summary')} style={{ cursor: 'pointer' }}>
+                     Summary <SortIcon columnKey="fields.summary" />
+                  </CTableHeaderCell>
+                  <CTableHeaderCell scope="col" onClick={() => requestSort('fields.labels')} style={{ cursor: 'pointer' }}> {/* Sorting by label array might be tricky, using first label for demo */}
+                     State <SortIcon columnKey="fields.labels" />
+                  </CTableHeaderCell> 
+                  <CTableHeaderCell scope="col" onClick={() => requestSort('fields.status.name')} style={{ cursor: 'pointer' }}>
+                     Status <SortIcon columnKey="fields.status.name" />
+                  </CTableHeaderCell> 
+                  <CTableHeaderCell scope="col" onClick={() => requestSort('fields.assignee.displayName')} style={{ cursor: 'pointer' }}>
+                     Assignee <SortIcon columnKey="fields.assignee.displayName" />
+                  </CTableHeaderCell> 
+                  <CTableHeaderCell scope="col" onClick={() => requestSort('fields.updated')} style={{ cursor: 'pointer' }}>
+                     Updated <SortIcon columnKey="fields.updated" />
+                  </CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
                 {data.map((ticket) => {
-                  // Determine state based on labels
                   const stateInfo = getStateFromLabels(ticket.fields?.labels);
                   const statusName = ticket.fields?.status?.name || '';
                   const statusColor = getStatusColor(statusName);
-                  
+
                   return (
                     <CTableRow key={ticket.id} onClick={() => handleRowClick(ticket)} style={{ cursor: 'pointer' }}>
                       <CTableDataCell>
-                        {/* Use jiraConfigUrl from state */}
                         <a 
                           href={jiraConfigUrl && jiraConfigUrl !== '#' ? `${jiraConfigUrl}/browse/${ticket.key}` : '#'} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           onClick={(e) => {
-                             if (!jiraConfigUrl || jiraConfigUrl === '#') e.preventDefault(); // Prevent navigation if URL is invalid/placeholder
+                             if (!jiraConfigUrl || jiraConfigUrl === '#') e.preventDefault();
                              e.stopPropagation();
                           }}
-                          // Optionally disable link visually if URL is not available
                           style={{ pointerEvents: (!jiraConfigUrl || jiraConfigUrl === '#') ? 'none' : 'auto', color: (!jiraConfigUrl || jiraConfigUrl === '#') ? 'inherit' : undefined }}
                         >
                           {ticket.key}
@@ -585,56 +656,62 @@ const Dashboard = () => {
           {summaryError && <p className="text-danger">Error loading summary: {summaryError}</p>}
           {!summaryLoading && !summaryError && (
             <CRow className="mb-4 text-center">
-              <CCol sm={6} xl={3} className="mb-3 mb-xl-0">
+              <CCol sm={6} lg className="mb-3 mb-lg-0">
                 <CCard textColor="warning">
                   <CCardBody>
                     <CIcon icon={cilWarning} size="xl" className="mb-2" />
                     <div>Triage Pending</div>
-                    {/* Use fetched data */}
                     <div className="fs-2 fw-semibold">{summaryData.triagePending}</div> 
                   </CCardBody>
                 </CCard>
               </CCol>
-              <CCol sm={6} xl={3} className="mb-3 mb-xl-0">
+              <CCol sm={6} lg className="mb-3 mb-lg-0">
                 <CCard textColor="info">
                   <CCardBody>
                     <CIcon icon={cilLoopCircular} size="xl" className="mb-2" />
                     <div>In Progress</div>
-                     {/* Use fetched/mock data */}
                     <div className="fs-2 fw-semibold">{summaryData.inProgress}</div>
                   </CCardBody>
                 </CCard>
               </CCol>
-              <CCol sm={6} xl={3} className="mb-3 mb-sm-0">
+              <CCol sm={6} lg className="mb-3 mb-lg-0">
                 <CCard textColor="danger">
                   <CCardBody>
                     <CIcon icon={cilFire} size="xl" className="mb-2" />
                     <div>Active P1</div>
-                     {/* Use fetched/mock data */}
                     <div className="fs-2 fw-semibold">{summaryData.activeP1}</div>
                   </CCardBody>
                 </CCard>
               </CCol>
-              <CCol sm={6} xl={3}>
+              <CCol sm={6} lg className="mb-3 mb-sm-0">
                 <CCard textColor="success">
                   <CCardBody>
                     <CIcon icon={cilCheckCircle} size="xl" className="mb-2" />
-                    <div>Completed (Today)</div>
-                     {/* Use fetched/mock data */}
+                    <div>Completed</div>
                     <div className="fs-2 fw-semibold">{summaryData.completedToday}</div>
                   </CCardBody>
                 </CCard>
               </CCol>
+              <CCol sm={6} lg className="mb-3 mb-sm-0">
+                 <CCard textColor="danger">
+                   <CCardBody>
+                     <CIcon icon={cilXCircle} size="xl" className="mb-2" />
+                     <div>Rejected</div>
+                     <div className="fs-2 fw-semibold">{summaryData.rejected}</div>
+                   </CCardBody>
+                 </CCard>
+               </CCol>
             </CRow>
           )}
 
+          {/* Ticket Tables Section - Pass sorted data */}
           {loading && <p>Loading tickets...</p>}
           {error && <p style={{ color: 'red' }}>Error fetching tickets: {error}</p>}
           {!loading && !error && (
             <>
-              {renderTable(p1Tickets, 'P1 Tickets', p1Visible, () => setP1Visible(!p1Visible))}
-              {renderTable(p2Tickets, 'P2 Tickets', p2Visible, () => setP2Visible(!p2Visible))}
-              {renderTable(otherTickets, 'Other Tickets', otherVisible, () => setOtherVisible(!otherVisible))}
+              {renderTable(sortedP1Tickets, 'P1 Tickets', p1Visible, () => setP1Visible(!p1Visible))}
+              {renderTable(sortedP2Tickets, 'P2 Tickets', p2Visible, () => setP2Visible(!p2Visible))}
+              {renderTable(sortedOtherTickets, 'Other Tickets', otherVisible, () => setOtherVisible(!otherVisible))}
             </>
           )}
 
