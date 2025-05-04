@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CButton,
   CCard,
@@ -20,7 +20,6 @@ import {
   CRow,
   CCol,
   CFormLabel,
-  CFormInput,
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
 import {
@@ -34,6 +33,7 @@ import {
   cilFire,
   cilCheckCircle,
 } from '@coreui/icons';
+import { formatDistanceToNow } from 'date-fns';
 
 // Base URL for the backend API
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
@@ -126,15 +126,22 @@ const Dashboard = () => {
   }, [selectedDateFilter, startDate, endDate]); // Dependency array - run effect when these change
 
 
-  // --- Data Filtering --- 
-  // Filter tickets by priority based on JIRA API structure
-  const getPriorityName = (ticket) => ticket?.fields?.priority?.name || 'Unknown';
+  // --- Data Filtering (Priority) --- 
+  // Helper to categorize priority for section filtering
+  const getPriorityCategory = (ticket) => {
+    const priorityName = ticket?.fields?.priority?.name?.toUpperCase();
+    if (!priorityName) return 'Other'; // Handle undefined/null priority
 
-  const p1Tickets = tickets.filter(ticket => getPriorityName(ticket).toUpperCase() === 'P1');
-  const p2Tickets = tickets.filter(ticket => getPriorityName(ticket).toUpperCase() === 'P2');
-  const otherTickets = tickets.filter(ticket => 
-    !['P1', 'P2'].includes(getPriorityName(ticket).toUpperCase())
-  );
+    if (priorityName.startsWith('P1')) return 'P1';
+    if (priorityName.startsWith('P2')) return 'P2';
+    // Treat P3, P4, and anything else as 'Other' for sectioning
+    return 'Other'; 
+  };
+
+  // Filter tickets into sections based on the category
+  const p1Tickets = tickets.filter(ticket => getPriorityCategory(ticket) === 'P1');
+  const p2Tickets = tickets.filter(ticket => getPriorityCategory(ticket) === 'P2');
+  const otherTickets = tickets.filter(ticket => getPriorityCategory(ticket) === 'Other');
 
   // --- Event Handlers --- 
   // Function to handle row click - adapted for JIRA key
@@ -165,8 +172,10 @@ const Dashboard = () => {
   };
 
   // --- Render Functions --- 
-  // Updated Function to render a collapsible table - uses JIRA API fields
   const renderTable = (data, title, isVisible, toggleVisibility) => {
+    // TODO: Get JIRA_BASE_URL from config/context for full links
+    const jiraBaseUrl = 'https://your-jira-instance.atlassian.net'; // Replace with actual or fetched base URL
+
     return (
       <div className="mb-4">
         <h4 onClick={toggleVisibility} style={{ cursor: 'pointer' }} className="d-flex justify-content-between align-items-center">
@@ -178,25 +187,36 @@ const Dashboard = () => {
             <CTable hover responsive bordered small className="mt-2">
               <CTableHead color="light">
                 <CTableRow>
-                  <CTableHeaderCell scope="col">#</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Key</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Summary</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Priority</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Type</CTableHeaderCell>
+                  <CTableHeaderCell scope="col">Status</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Created</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Updated</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                {data.map((ticket, index) => (
+                {data.map((ticket) => (
                   <CTableRow key={ticket.id} onClick={() => handleRowClick(ticket)} style={{ cursor: 'pointer' }}>
-                    <CTableHeaderCell scope="row">{index + 1}</CTableHeaderCell>
-                    <CTableDataCell>{ticket.key}</CTableDataCell>
+                    <CTableDataCell>
+                      <a 
+                        href={`${jiraBaseUrl}/browse/${ticket.key}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {ticket.key}
+                      </a>
+                    </CTableDataCell>
                     <CTableDataCell>{ticket.fields?.summary}</CTableDataCell>
-                    <CTableDataCell>{ticket.fields?.priority?.name}</CTableDataCell>
-                    <CTableDataCell>{ticket.fields?.issuetype?.name}</CTableDataCell> 
-                    <CTableDataCell>{new Date(ticket.fields?.created).toLocaleString()}</CTableDataCell>
-                    <CTableDataCell>{new Date(ticket.fields?.updated).toLocaleString()}</CTableDataCell>
+                    <CTableDataCell>{ticket.fields?.priority?.name || ''}</CTableDataCell>
+                    <CTableDataCell>{ticket.fields?.status?.name || ''}</CTableDataCell>
+                    <CTableDataCell>
+                      {ticket.fields?.created ? formatDistanceToNow(new Date(ticket.fields.created), { addSuffix: true }) : ''}
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      {ticket.fields?.updated ? formatDistanceToNow(new Date(ticket.fields.updated), { addSuffix: true }) : ''}
+                    </CTableDataCell>
                   </CTableRow>
                 ))}
               </CTableBody>
