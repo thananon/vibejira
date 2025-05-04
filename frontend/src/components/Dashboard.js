@@ -72,7 +72,7 @@ const Dashboard = () => {
   const [endDate, setEndDate] = useState('');
 
   // State for main button filtering - Set default to 'ongoing'
-  const [activeButtonFilter, setActiveButtonFilter] = useState('ongoing'); // 'ongoing', 'done'
+  const [activeButtonFilter, setActiveButtonFilter] = useState('ongoing'); // 'ongoing', 'triagePending', 'done'
 
   // State for Jira Base URL fetched from backend
   const [jiraConfigUrl, setJiraConfigUrl] = useState('');
@@ -143,48 +143,51 @@ const Dashboard = () => {
       setError(null);
       try {
         // Base JQL parts
-        const projectAndType = `project = SWDEV AND issuetype = Defect`; // Keep this consistent
-        const triageAssignment = `"Triage Assignment" = "[1637333]"`; // Assuming this is consistent
-        const labels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_REJECTED, RCCL_TRIAGE_NEED_MORE_INFO)`; // Assuming consistent
+        const projectAndType = `project = SWDEV AND issuetype = Defect`;
+        const triageAssignment = `"Triage Assignment" = "[1637333]"`;
 
-        let statusFilterJql = '';
-        if (activeButtonFilter === 'ongoing') {
-          statusFilterJql = ' AND status in (Opened, Assessed, Analyzed)';
-        } else if (activeButtonFilter === 'done') {
-          statusFilterJql = ' AND status in (Implemented, Closed, Rejected)';
-        }
-        
-        let dateFilterJql = '';
-        // Use the default 'week' filter if selected
-        if (selectedDateFilter === 'week') {
-          dateFilterJql = ' AND updated >= -7d'; 
-        } else if (selectedDateFilter === 'month') {
-          dateFilterJql = ' AND updated >= -30d';
-        } else if (selectedDateFilter === 'range' && startDate && endDate) {
-          dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
-        } else if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
-           console.log("Range selected, waiting for both dates.");
-           setLoading(false); 
-           return; 
-        }
-        // Note: 'all' date filter doesn't add a date clause
+        let finalJql = '';
 
-        // --- Assignee Filter --- 
-        let assigneeFilterJql = '';
-        if (activeAssigneeFilter === 'avinash') {
-          assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
-        } else if (activeAssigneeFilter === 'marzieh') {
-          assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
-        } else if (activeAssigneeFilter === 'me') {
-          // Assuming the name mapping - might need adjustment based on Jira user format
-          assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
-          // Alternatively, if backend supports currentUser() for PAT context:
-          // assigneeFilterJql = ' AND assignee = currentUser()'; 
-        }
-        // If activeAssigneeFilter is null, no assignee clause is added (shows all)
+        if (activeButtonFilter === 'triagePending') {
+           // Special JQL for Triage Pending - Ignores Status, Assignee, Date
+           finalJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_PENDING ORDER BY updated DESC`;
+        } else {
+          // Logic for 'ongoing' and 'done' filters (which include other filters)
+          const labels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_REJECTED, RCCL_TRIAGE_NEED_MORE_INFO)`; // Keep base label filter for these views
 
-        // Combine JQL parts
-        const finalJql = `${projectAndType} AND ${triageAssignment} AND ${labels}${statusFilterJql}${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
+          let statusFilterJql = '';
+          if (activeButtonFilter === 'ongoing') {
+            statusFilterJql = ' AND status in (Opened, Assessed, Analyzed)';
+          } else if (activeButtonFilter === 'done') {
+            statusFilterJql = ' AND status in (Implemented, Closed, Rejected)';
+          }
+
+          let dateFilterJql = '';
+          if (selectedDateFilter === 'week') {
+            dateFilterJql = ' AND updated >= -7d'; 
+          } else if (selectedDateFilter === 'month') {
+            dateFilterJql = ' AND updated >= -30d';
+          } else if (selectedDateFilter === 'range' && startDate && endDate) {
+            dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
+          } else if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
+             console.log("Range selected, waiting for both dates.");
+             setLoading(false); 
+             return; 
+          }
+
+          let assigneeFilterJql = '';
+          if (activeAssigneeFilter === 'avinash') {
+            assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
+          } else if (activeAssigneeFilter === 'marzieh') {
+            assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
+          } else if (activeAssigneeFilter === 'me') {
+            assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
+          }
+          
+          // Combine JQL parts for ongoing/done views
+          finalJql = `${projectAndType} AND ${triageAssignment} AND ${labels}${statusFilterJql}${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
+        }
+
         const encodedJql = encodeURIComponent(finalJql);
         const url = `${API_BASE_URL}/api/tickets?jql=${encodedJql}&maxResults=100`; 
 
@@ -217,7 +220,7 @@ const Dashboard = () => {
 
     fetchTickets(); 
 
-  }, [selectedDateFilter, startDate, endDate, activeButtonFilter, activeAssigneeFilter]); // Added activeAssigneeFilter dependency
+  }, [selectedDateFilter, startDate, endDate, activeButtonFilter, activeAssigneeFilter]); // Dependencies remain the same
 
   // --- Fetch Comments --- 
   const fetchComments = async (issueKey) => {
@@ -265,6 +268,17 @@ const Dashboard = () => {
       return { text: 'Rejected', color: 'danger' };
     }
     return { text: 'Unknown', color: 'secondary' }; // Default/fallback state
+  };
+
+  // --- Helper Function for Status Color --- 
+  const getStatusColor = (statusName = '') => {
+    const upperCaseStatus = statusName.toUpperCase();
+    if (upperCaseStatus === 'REJECTED') return 'danger';
+    if (upperCaseStatus === 'OPENED') return 'warning';
+    if (upperCaseStatus === 'ASSESSED') return 'info'; 
+    if (upperCaseStatus === 'ANALYZED') return 'success';
+    if (upperCaseStatus === 'IMPLEMENTED' || upperCaseStatus === 'CLOSED') return 'primary';
+    return 'secondary'; // Default color
   };
 
   // --- Data Filtering (Priority) --- 
@@ -350,6 +364,8 @@ const Dashboard = () => {
                 {data.map((ticket) => {
                   // Determine state based on labels
                   const stateInfo = getStateFromLabels(ticket.fields?.labels);
+                  const statusName = ticket.fields?.status?.name || '';
+                  const statusColor = getStatusColor(statusName);
                   
                   return (
                     <CTableRow key={ticket.id} onClick={() => handleRowClick(ticket)} style={{ cursor: 'pointer' }}>
@@ -373,7 +389,9 @@ const Dashboard = () => {
                       <CTableDataCell>
                         <CBadge color={stateInfo.color}>{stateInfo.text}</CBadge>
                       </CTableDataCell>
-                      <CTableDataCell>{ticket.fields?.status?.name || ''}</CTableDataCell>
+                      <CTableDataCell>
+                        <CBadge color={statusColor}>{statusName || 'Unknown'}</CBadge>
+                      </CTableDataCell>
                       <CTableDataCell>{ticket.fields?.assignee?.displayName || 'Unassigned'}</CTableDataCell>
                       <CTableDataCell>
                         {ticket.fields?.updated ? formatDistanceToNow(new Date(ticket.fields.updated), { addSuffix: true }) : ''}
@@ -410,109 +428,121 @@ const Dashboard = () => {
                 Ongoing Issues
               </CButton>
               <CButton 
+                color="warning" 
+                variant={activeButtonFilter === 'triagePending' ? undefined : 'outline'}
+                onClick={() => handleMainFilterClick('triagePending')}
+              >
+                Triage Pending
+              </CButton>
+              <CButton 
                 color="success" 
                 variant={activeButtonFilter === 'done' ? undefined : 'outline'}
                 onClick={() => handleMainFilterClick('done')}
               >
                 Done
               </CButton>
-              {/* Removed other buttons for now */}
             </CButtonGroup>
           </div>
 
-          <div className="mb-3">
-            <span className="me-2">Filter by Updated Date:</span>
-            <CButtonGroup role="group" aria-label="Date Filter Buttons">
-              <CButton 
-                color="info" 
-                variant={selectedDateFilter === 'week' ? 'outline' : undefined} 
-                onClick={() => handleDateFilterClick('week')}
-              >
-                Last Week
-              </CButton>
-              <CButton 
-                color="info" 
-                variant={selectedDateFilter === 'month' ? 'outline' : undefined}
-                onClick={() => handleDateFilterClick('month')}
-              >
-                Last Month
-              </CButton>
-              <CButton 
-                color="info" 
-                variant={selectedDateFilter === 'all' ? 'outline' : undefined}
-                onClick={() => handleDateFilterClick('all')}
-              >
-                All Time
-              </CButton>
-              <CButton 
-                color="info" 
-                variant={selectedDateFilter === 'range' ? 'outline' : undefined}
-                onClick={() => handleDateFilterClick('range')}
-              >
-                Range
-              </CButton>
-            </CButtonGroup>
-          </div>
-
-          {/* Assignee Filter Buttons */}
-          <div className="mb-3">
-             <span className="me-2">Filter by Assignee:</span>
-             <CButtonGroup role="group" aria-label="Assignee Filter Buttons">
-               <CButton 
-                 color="secondary"
-                 variant={activeAssigneeFilter === null ? undefined : 'outline'} 
-                 onClick={() => handleAssigneeFilterClick(null)}
-               >
-                 All Assignees
-               </CButton>
-               <CButton 
-                 color="secondary"
-                 variant={activeAssigneeFilter === 'avinash' ? undefined : 'outline'} 
-                 onClick={() => handleAssigneeFilterClick('avinash')}
-               >
-                 Avinash
-               </CButton>
-               <CButton 
-                 color="secondary"
-                 variant={activeAssigneeFilter === 'marzieh' ? undefined : 'outline'} 
-                 onClick={() => handleAssigneeFilterClick('marzieh')}
-               >
-                 Marzieh
-               </CButton>
-               <CButton 
-                 color="secondary"
-                 variant={activeAssigneeFilter === 'me' ? undefined : 'outline'} 
-                 onClick={() => handleAssigneeFilterClick('me')}
-               >
-                 Me
-               </CButton>
-             </CButtonGroup>
-           </div>
-
-          {selectedDateFilter === 'range' && (
-            <CRow className="mb-3 align-items-end">
-              <CCol md={3}>
-                 <CFormLabel htmlFor="startDate">From Date:</CFormLabel>
-                 <input 
-                   type="date" 
-                   id="startDate" 
-                   className="form-control"
-                   value={startDate} 
-                   onChange={handleStartDateChange} 
-                 />
-              </CCol>
-              <CCol md={3}>
-                <CFormLabel htmlFor="endDate">To Date:</CFormLabel>
-                <input 
-                  type="date" 
-                  id="endDate" 
-                  className="form-control"
-                  value={endDate} 
-                  onChange={handleEndDateChange} 
-                />
-              </CCol>
-            </CRow>
+          {/* Date Filter Buttons - Conditionally hide if Triage Pending selected */}
+          {activeButtonFilter !== 'triagePending' && (
+            <div className="mb-3">
+              <span className="me-2">Filter by Updated Date:</span>
+              <CButtonGroup role="group" aria-label="Date Filter Buttons">
+                <CButton 
+                  color="info" 
+                  variant={selectedDateFilter === 'week' ? 'outline' : undefined} 
+                  onClick={() => handleDateFilterClick('week')}
+                >
+                  Last Week
+                </CButton>
+                <CButton 
+                  color="info" 
+                  variant={selectedDateFilter === 'month' ? 'outline' : undefined}
+                  onClick={() => handleDateFilterClick('month')}
+                >
+                  Last Month
+                </CButton>
+                <CButton 
+                  color="info" 
+                  variant={selectedDateFilter === 'all' ? 'outline' : undefined}
+                  onClick={() => handleDateFilterClick('all')}
+                >
+                  All Time
+                </CButton>
+                <CButton 
+                  color="info" 
+                  variant={selectedDateFilter === 'range' ? 'outline' : undefined}
+                  onClick={() => handleDateFilterClick('range')}
+                >
+                  Range
+                </CButton>
+              </CButtonGroup>
+            </div>
           )}
+
+          {/* Assignee Filter Buttons - Conditionally hide if Triage Pending selected */}
+          {activeButtonFilter !== 'triagePending' && (
+            <div className="mb-3">
+              <span className="me-2">Filter by Assignee:</span>
+              <CButtonGroup role="group" aria-label="Assignee Filter Buttons">
+                <CButton 
+                  color="secondary" 
+                  variant={activeAssigneeFilter === null ? undefined : 'outline'} 
+                  onClick={() => handleAssigneeFilterClick(null)}
+                >
+                  All Assignees
+                </CButton>
+                <CButton 
+                  color="secondary" 
+                  variant={activeAssigneeFilter === 'avinash' ? undefined : 'outline'} 
+                  onClick={() => handleAssigneeFilterClick('avinash')}
+                >
+                  Avinash
+                </CButton>
+                <CButton 
+                  color="secondary" 
+                  variant={activeAssigneeFilter === 'marzieh' ? undefined : 'outline'} 
+                  onClick={() => handleAssigneeFilterClick('marzieh')}
+                >
+                  Marzieh
+                </CButton>
+                <CButton 
+                  color="secondary" 
+                  variant={activeAssigneeFilter === 'me' ? undefined : 'outline'} 
+                  onClick={() => handleAssigneeFilterClick('me')}
+                >
+                  Me
+                </CButton>
+              </CButtonGroup>
+            </div>
+          )}
+
+           {/* Conditional Date Range Inputs - Conditionally hide if Triage Pending selected */} 
+           {activeButtonFilter !== 'triagePending' && selectedDateFilter === 'range' && (
+             <CRow className="mb-3 align-items-end">
+                <CCol md={3}>
+                   <CFormLabel htmlFor="startDate">From Date:</CFormLabel>
+                   <input 
+                     type="date" 
+                     id="startDate" 
+                     className="form-control"
+                     value={startDate} 
+                     onChange={handleStartDateChange} 
+                   />
+                </CCol>
+                <CCol md={3}>
+                  <CFormLabel htmlFor="endDate">To Date:</CFormLabel>
+                  <input 
+                    type="date" 
+                    id="endDate" 
+                    className="form-control"
+                    value={endDate} 
+                    onChange={handleEndDateChange} 
+                  />
+                </CCol>
+             </CRow>
+           )}
 
           {/* Summary Cards Row */}
           {summaryLoading && <p>Loading summary...</p>}
