@@ -21,6 +21,7 @@ import {
   CCol,
   CFormLabel,
   CSpinner,
+  CBadge,
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
 import {
@@ -38,6 +39,8 @@ import { formatDistanceToNow } from 'date-fns';
 
 // Base URL for the backend API
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
+// JIRA Base URL from environment variable
+const JIRA_BROWSE_URL = process.env.REACT_APP_JIRA_BASE_URL || '#'; // Fallback to '#' if not set
 
 const Dashboard = () => {
   // State for fetched tickets, loading, and error
@@ -65,6 +68,23 @@ const Dashboard = () => {
 
   // State for main button filtering - Set default to 'ongoing'
   const [activeButtonFilter, setActiveButtonFilter] = useState('ongoing'); // 'ongoing', 'done'
+
+  // --- Helper Function for State --- 
+  const getStateFromLabels = (labels = []) => {
+    if (labels.includes('RCCL_TRIAGE_PENDING')) {
+      return { text: 'Need Triage', color: 'warning' };
+    }
+    if (labels.includes('RCCL_TRIAGE_COMPLETED')) {
+      return { text: 'Triaged', color: 'success' };
+    }
+    if (labels.includes('RCCL_TRIAGE_NEED_MORE_INFO')) {
+      return { text: 'Waiting', color: 'info' };
+    }
+    if (labels.includes('RCCL_TRIAGE_REJECTED')) {
+      return { text: 'Rejected', color: 'danger' };
+    }
+    return { text: 'Unknown', color: 'secondary' }; // Default/fallback state
+  };
 
   // --- Fetch Tickets --- 
   useEffect(() => {
@@ -220,8 +240,8 @@ const Dashboard = () => {
 
   // --- Render Functions --- 
   const renderTable = (data, title, isVisible, toggleVisibility) => {
-    // TODO: Get JIRA_BASE_URL from config/context for full links
-    const jiraBaseUrl = 'https://your-jira-instance.atlassian.net'; // Replace with actual or fetched base URL
+    // Removed hardcoded placeholder, using value read from process.env above
+    // const jiraBaseUrl = 'https://your-jira-instance.atlassian.net'; 
 
     return (
       <div className="mb-4">
@@ -236,34 +256,45 @@ const Dashboard = () => {
                 <CTableRow>
                   <CTableHeaderCell scope="col">Key</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Summary</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Priority</CTableHeaderCell>
+                  <CTableHeaderCell scope="col">State</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Status</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Assignee</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Updated</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                {data.map((ticket) => (
-                  <CTableRow key={ticket.id} onClick={() => handleRowClick(ticket)} style={{ cursor: 'pointer' }}>
-                    <CTableDataCell>
-                      <a 
-                        href={`${jiraBaseUrl}/browse/${ticket.key}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {ticket.key}
-                      </a>
-                    </CTableDataCell>
-                    <CTableDataCell>{ticket.fields?.summary}</CTableDataCell>
-                    <CTableDataCell>{ticket.fields?.priority?.name || ''}</CTableDataCell>
-                    <CTableDataCell>{ticket.fields?.status?.name || ''}</CTableDataCell>
-                    <CTableDataCell>{ticket.fields?.assignee?.displayName || 'Unassigned'}</CTableDataCell>
-                    <CTableDataCell>
-                      {ticket.fields?.updated ? formatDistanceToNow(new Date(ticket.fields.updated), { addSuffix: true }) : ''}
-                    </CTableDataCell>
-                  </CTableRow>
-                ))}
+                {data.map((ticket) => {
+                  // Determine state based on labels
+                  const stateInfo = getStateFromLabels(ticket.fields?.labels);
+                  
+                  return (
+                    <CTableRow key={ticket.id} onClick={() => handleRowClick(ticket)} style={{ cursor: 'pointer' }}>
+                      <CTableDataCell>
+                        {/* Use JIRA_BROWSE_URL from environment */}
+                        <a 
+                          href={`${JIRA_BROWSE_URL}/browse/${ticket.key}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                             if (JIRA_BROWSE_URL === '#') e.preventDefault(); // Prevent navigation if URL is placeholder
+                             e.stopPropagation();
+                          }}
+                        >
+                          {ticket.key}
+                        </a>
+                      </CTableDataCell>
+                      <CTableDataCell>{ticket.fields?.summary}</CTableDataCell>
+                      <CTableDataCell>
+                        <CBadge color={stateInfo.color}>{stateInfo.text}</CBadge>
+                      </CTableDataCell>
+                      <CTableDataCell>{ticket.fields?.status?.name || ''}</CTableDataCell>
+                      <CTableDataCell>{ticket.fields?.assignee?.displayName || 'Unassigned'}</CTableDataCell>
+                      <CTableDataCell>
+                        {ticket.fields?.updated ? formatDistanceToNow(new Date(ticket.fields.updated), { addSuffix: true }) : ''}
+                      </CTableDataCell>
+                    </CTableRow>
+                  );
+                })}
               </CTableBody>
             </CTable>
           ) : (
