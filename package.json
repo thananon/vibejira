@@ -17,7 +17,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "start:all": "concurrently \"npm run dev --prefix backend\" \"npm start\""
+    "start:all": "concurrently \"npm run dev --prefix backend\" \"npm start\"",
+    "start:all:debug": "concurrently \"npm run debug --prefix backend\" \"npm start\""
   },
   "eslintConfig": {
     "extends": [

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CButton,
   CCard,
@@ -33,7 +33,15 @@ import {
   cilCheckCircle,
 } from '@coreui/icons';
 
+// Base URL for the backend API
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
+
 const Dashboard = () => {
+  // State for fetched tickets, loading, and error
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   // State for sidebar
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [selectedTicketKey, setSelectedTicketKey] = useState(null);
@@ -44,149 +52,120 @@ const Dashboard = () => {
   const [p2Visible, setP2Visible] = useState(true);
   const [otherVisible, setOtherVisible] = useState(true);
 
-  // Mock data for the JIRA tickets table - Added priority
-  const mockTickets = [
-    {
-      id: 1,
-      name: 'VIBE-101',
-      title: 'Implement Dashboard UI',
-      date: '2024-07-26',
-      category: 'Frontend',
-      priority: 'P1',
-      lastUpdated: '2024-07-26 10:00',
-    },
-    {
-      id: 2,
-      name: 'VIBE-102',
-      title: 'Setup Backend API',
-      date: '2024-07-25',
-      category: 'Backend',
-      priority: 'P1',
-      lastUpdated: '2024-07-26 09:30',
-    },
-    {
-      id: 3,
-      name: 'VIBE-103',
-      title: 'Define Database Schema',
-      date: '2024-07-24',
-      category: 'Database',
-      priority: 'P2',
-      lastUpdated: '2024-07-25 15:00',
-    },
-    {
-      id: 4,
-      name: 'VIBE-104',
-      title: 'Add Authentication',
-      date: '2024-07-27',
-      category: 'Backend',
-      priority: 'P2',
-      lastUpdated: '2024-07-27 11:00',
-    },
-    {
-      id: 5,
-      name: 'VIBE-105',
-      title: 'Deploy Frontend Mockup',
-      date: '2024-07-28',
-      category: 'Infra',
-      priority: 'P3',
-      lastUpdated: '2024-07-28 09:00',
-    },
-    {
-      id: 6,
-      name: 'VIBE-106',
-      title: 'Write Feature Docs',
-      date: '2024-07-28',
-      category: 'Docs',
-      priority: 'P4',
-      lastUpdated: '2024-07-28 11:00',
-    },
-  ];
+  // --- Fetch Data --- 
+  useEffect(() => {
+    const fetchTickets = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const jql = 'project = SWDEV ORDER BY created DESC';
+        const encodedJql = encodeURIComponent(jql);
+        const url = `${API_BASE_URL}/api/tickets?jql=${encodedJql}&maxResults=10`;
 
-  // Filter tickets by priority
-  const p1Tickets = mockTickets.filter(ticket => ticket.priority === 'P1');
-  const p2Tickets = mockTickets.filter(ticket => ticket.priority === 'P2');
-  const otherTickets = mockTickets.filter(ticket => ticket.priority !== 'P1' && ticket.priority !== 'P2');
+        console.log(`Fetching tickets from: ${url}`); // Debug log
 
-  // Mock comments data
-  const mockComments = {
-    'VIBE-101': [
-      { id: 'c1', author: 'Alice', body: 'Looks good, proceeding with implementation.' },
-      { id: 'c2', author: 'Bob', body: 'Need to adjust the padding slightly.' },
-    ],
-    'VIBE-102': [
-      { id: 'c3', author: 'Charlie', body: 'Initial setup complete.' },
-    ],
-    'VIBE-103': [
-      { id: 'c4', author: 'Alice', body: 'Schema defined and reviewed.' },
-      { id: 'c5', author: 'David', body: 'Added indexes for performance.' },
-      { id: 'c6', author: 'Alice', body: 'Looks perfect, thanks!.' },
-    ],
-    'VIBE-104': [], // No comments yet
-  };
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: response.statusText }));
+          throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Failed to fetch tickets'}`);
+        }
+        const data = await response.json();
+        console.log('Fetched data:', data); // Debug log
 
-  // Function to handle row click
+        // Check if the response has the expected 'issues' array
+        if (data && Array.isArray(data.issues)) {
+          setTickets(data.issues); 
+        } else {
+          console.error('Unexpected API response structure:', data);
+          throw new Error('Received unexpected data structure from API.');
+        }
+      } catch (err) {
+        console.error('Fetch error:', err);
+        setError(err.message);
+        setTickets([]); // Clear tickets on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTickets();
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+
+  // --- Data Filtering --- 
+  // Filter tickets by priority based on JIRA API structure
+  const getPriorityName = (ticket) => ticket?.fields?.priority?.name || 'Unknown';
+
+  const p1Tickets = tickets.filter(ticket => getPriorityName(ticket).toUpperCase() === 'P1');
+  const p2Tickets = tickets.filter(ticket => getPriorityName(ticket).toUpperCase() === 'P2');
+  const otherTickets = tickets.filter(ticket => 
+    !['P1', 'P2'].includes(getPriorityName(ticket).toUpperCase())
+  );
+
+  // --- Event Handlers --- 
+  // Function to handle row click - adapted for JIRA key
   const handleRowClick = (ticket) => {
-    setSelectedTicketKey(ticket.name); // Use ticket.name as the key for mock data
-    setSelectedTicketComments(mockComments[ticket.name] || []);
+    setSelectedTicketKey(ticket.key); 
+    setSelectedTicketComments([]); // Clear mock comments - TODO: Fetch real comments later
     setSidebarVisible(true);
   };
 
-  // Updated Function to render a collapsible table
-  const renderTable = (tickets, title, isVisible, toggleVisibility) => {
-    if (tickets.length === 0) {
-      // Still render the header even if empty, so it can be collapsed/expanded
-      // Potentially show a message inside the collapse when empty?
-    }
+  // --- Render Functions --- 
+  // Updated Function to render a collapsible table - uses JIRA API fields
+  const renderTable = (data, title, isVisible, toggleVisibility) => {
     return (
       <div className="mb-4">
         <h4 onClick={toggleVisibility} style={{ cursor: 'pointer' }} className="d-flex justify-content-between align-items-center">
-          {title} ({tickets.length})
+          {title} ({data.length})
           <CIcon icon={isVisible ? cilChevronBottom : cilChevronTop} />
         </h4>
         <CCollapse visible={isVisible}>
-          {tickets.length > 0 ? (
+          {data.length > 0 ? (
             <CTable hover responsive bordered small className="mt-2">
               <CTableHead color="light">
                 <CTableRow>
                   <CTableHeaderCell scope="col">#</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Ticket Name</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Title</CTableHeaderCell>
+                  <CTableHeaderCell scope="col">Key</CTableHeaderCell>
+                  <CTableHeaderCell scope="col">Summary</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Priority</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Date Created</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Category</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Last Updated</CTableHeaderCell>
+                  <CTableHeaderCell scope="col">Type</CTableHeaderCell>
+                  <CTableHeaderCell scope="col">Created</CTableHeaderCell>
+                  <CTableHeaderCell scope="col">Updated</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                {tickets.map((ticket, index) => (
+                {data.map((ticket, index) => (
                   <CTableRow key={ticket.id} onClick={() => handleRowClick(ticket)} style={{ cursor: 'pointer' }}>
                     <CTableHeaderCell scope="row">{index + 1}</CTableHeaderCell>
-                    <CTableDataCell>{ticket.name}</CTableDataCell>
-                    <CTableDataCell>{ticket.title}</CTableDataCell>
-                    <CTableDataCell>{ticket.priority}</CTableDataCell>
-                    <CTableDataCell>{ticket.date}</CTableDataCell>
-                    <CTableDataCell>{ticket.category}</CTableDataCell>
-                    <CTableDataCell>{ticket.lastUpdated}</CTableDataCell>
+                    <CTableDataCell>{ticket.key}</CTableDataCell>
+                    <CTableDataCell>{ticket.fields?.summary}</CTableDataCell>
+                    <CTableDataCell>{ticket.fields?.priority?.name}</CTableDataCell>
+                    <CTableDataCell>{ticket.fields?.issuetype?.name}</CTableDataCell> 
+                    <CTableDataCell>{new Date(ticket.fields?.created).toLocaleString()}</CTableDataCell>
+                    <CTableDataCell>{new Date(ticket.fields?.updated).toLocaleString()}</CTableDataCell>
                   </CTableRow>
                 ))}
               </CTableBody>
             </CTable>
           ) : (
-            <p className="text-muted mt-2">No tickets in this section.</p> // Message if empty
+            <p className="text-muted mt-2">No tickets in this section.</p>
           )}
         </CCollapse>
       </div>
     );
   };
 
+  // --- Main Render --- 
   return (
     <>
       <CCard>
         <CCardHeader>
-          JIRA Ticket Dashboard
+          JIRA Ticket Dashboard (Project: SWDEV)
         </CCardHeader>
         <CCardBody>
           <div className="mb-3">
+            {/* TODO: Make buttons functional later */}
             <CButtonGroup role="group" aria-label="JIRA Query Buttons">
               <CButton color="primary">My Open Issues</CButton>
               <CButton color="secondary">Reported by Me</CButton>
@@ -195,7 +174,7 @@ const Dashboard = () => {
             </CButtonGroup>
           </div>
 
-          {/* Summary Cards Row */}
+          {/* Summary Cards Row - TODO: Fetch summary data */}
           <CRow className="mb-4 text-center">
             <CCol sm={6} xl={3} className="mb-3 mb-xl-0">
               <CCard textColor="warning">
@@ -235,46 +214,50 @@ const Dashboard = () => {
             </CCol>
           </CRow>
 
-          {/* Render collapsible tables based on priority */}
-          {renderTable(p1Tickets, 'P1 Tickets', p1Visible, () => setP1Visible(!p1Visible))}
-          {renderTable(p2Tickets, 'P2 Tickets', p2Visible, () => setP2Visible(!p2Visible))}
-          {renderTable(otherTickets, 'Other Tickets', otherVisible, () => setOtherVisible(!otherVisible))}
+          {/* Ticket Tables Section */}
+          {loading && <p>Loading tickets...</p>}
+          {error && <p style={{ color: 'red' }}>Error fetching tickets: {error}</p>}
+          {!loading && !error && (
+            <>
+              {renderTable(p1Tickets, 'P1 Tickets', p1Visible, () => setP1Visible(!p1Visible))}
+              {renderTable(p2Tickets, 'P2 Tickets', p2Visible, () => setP2Visible(!p2Visible))}
+              {renderTable(otherTickets, 'Other Tickets', otherVisible, () => setOtherVisible(!otherVisible))}
+            </>
+          )}
 
         </CCardBody>
       </CCard>
 
+      {/* Sidebar Canvas */}
       <COffcanvas placement="end" visible={sidebarVisible} onHide={() => setSidebarVisible(false)}>
         <COffcanvasHeader>
-          <COffcanvasTitle>Comments for {selectedTicketKey}</COffcanvasTitle>
+          <COffcanvasTitle>Details for {selectedTicketKey}</COffcanvasTitle> // Changed title slightly
           <CCloseButton className="text-reset" onClick={() => setSidebarVisible(false)} />
         </COffcanvasHeader>
         <COffcanvasBody>
-          <div className="mb-4">
-            <CButtonGroup role="group" aria-label="Ticket Actions">
-              <CButton color="primary">
-                <CIcon icon={cilCommentBubble} className="me-2" />
-                Add Comment
-              </CButton>
-              <CButton color="secondary">
-                <CIcon icon={cilTags} className="me-2" />
-                Add Label
-              </CButton>
-              <CButton color="info">
-                <CIcon icon={cilReload} className="me-2" />
-                Refresh
-              </CButton>
-            </CButtonGroup>
+          {/* Action Buttons */}
+          <div className="mb-3">
+            <CButton color="primary" className="me-2" disabled> {/* TODO: Implement */} 
+              <CIcon icon={cilCommentBubble} className="me-1"/> Add Comment
+            </CButton>
+            <CButton color="secondary" className="me-2" disabled> {/* TODO: Implement */}
+              <CIcon icon={cilTags} className="me-1" /> Add Label
+            </CButton>
+            <CButton color="light" disabled> {/* TODO: Implement */}
+              <CIcon icon={cilReload} className="me-1" /> Refresh
+            </CButton>
           </div>
 
+          {/* Comments Section - TODO: Fetch and display real comments */}
+          <h5>Comments</h5>
           {selectedTicketComments.length > 0 ? (
-            selectedTicketComments.map(comment => (
-              <div key={comment.id} className="mb-3 p-2 border rounded bg-body-secondary">
-                <strong>{comment.author}:</strong>
-                <p className="mb-0 mt-1">{comment.body}</p>
+            selectedTicketComments.map((comment) => (
+              <div key={comment.id} className="mb-2 p-2 border rounded bg-light text-dark">
+                <strong>{comment.author}:</strong> {comment.body}
               </div>
             ))
           ) : (
-            <p>No comments found for this ticket.</p>
+            <p>No comments yet.</p>
           )}
         </COffcanvasBody>
       </COffcanvas>

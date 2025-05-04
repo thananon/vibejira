@@ -1,6 +1,9 @@
 const axios = require('axios');
 const config = require('../config');
 
+// Flag for debug logging
+const JIRA_DEBUG_ENABLED = process.env.JIRA_API_DEBUG === 'true';
+
 // Create an axios instance pre-configured for JIRA API v3 (Cloud)
 const jiraApi = axios.create({
   baseURL: `${config.jiraBaseUrl}/rest/api/3`,
@@ -9,6 +12,68 @@ const jiraApi = axios.create({
     Accept: 'application/json',
   }
 });
+
+// --- Axios Interceptors for Debugging ---
+if (JIRA_DEBUG_ENABLED) {
+  console.log('JIRA API Debug Logging Enabled');
+
+  jiraApi.interceptors.request.use(
+    (request) => {
+      console.log('\\n--- JIRA API Request --- \\n');
+      console.log(`METHOD: ${request.method.toUpperCase()}`);
+      console.log(`URL: ${request.baseURL}${request.url}`);
+      if (request.params && Object.keys(request.params).length > 0) {
+        console.log('PARAMS:', JSON.stringify(request.params));
+      }
+      if (request.data) {
+        try {
+           console.log('BODY:', JSON.stringify(request.data, null, 2));
+        } catch (e) {
+           console.log('BODY: [Could not stringify]');
+        }
+      }
+      console.log('------------------------ \\n');
+      return request;
+    },
+    (error) => {
+      console.error('\\n--- JIRA API Request Error --- \\n', error);
+      console.error('---------------------------- \\n');
+      return Promise.reject(error);
+    }
+  );
+
+  jiraApi.interceptors.response.use(
+    (response) => {
+      console.log('\\n--- JIRA API Response --- \\n');
+      console.log(`STATUS: ${response.status}`);
+      try {
+          console.log('DATA:', JSON.stringify(response.data, null, 2));
+      } catch (e) {
+          console.log('DATA: [Could not stringify]');
+      }
+      console.log('------------------------- \\n');
+      return response;
+    },
+    (error) => {
+      console.error('\\n--- JIRA API Response Error --- \\n');
+      if (error.response) {
+        console.error(`STATUS: ${error.response.status}`);
+        try {
+            console.error('DATA:', JSON.stringify(error.response.data, null, 2));
+        } catch (e) {
+            console.error('DATA: [Could not stringify]');
+        }
+        // console.error('HEADERS:', JSON.stringify(error.response.headers, null, 2));
+      } else if (error.request) {
+        console.error('REQUEST MADE BUT NO RESPONSE:', error.request);
+      } else {
+        console.error('ERROR MESSAGE:', error.message);
+      }
+      console.error('----------------------------- \\n');
+      return Promise.reject(error);
+    }
+  );
+}
 
 // --- Service Functions --- 
 
