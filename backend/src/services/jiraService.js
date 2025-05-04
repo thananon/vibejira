@@ -87,7 +87,7 @@ const searchIssues = async (jql, options = {}) => {
   try {
     const params = {
       jql: jql,
-      fields: options.fields || 'summary,status,issuetype,priority,created,updated',
+      fields: options.fields || 'summary,status,issuetype,priority,created,updated,assignee,labels',
       maxResults: options.maxResults || 50,
       startAt: options.startAt || 0,
       validateQuery: 'strict',
