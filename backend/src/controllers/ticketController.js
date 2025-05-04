@@ -9,20 +9,35 @@ const asyncHandler = fn => (req, res, next) =>
 // --- Controller Functions --- 
 
 exports.getDashboardSummary = asyncHandler(async (req, res) => {
-  // TODO: Implement logic to make multiple JQL calls for card data
-  // Example JQLs:
-  // - 'status = "Triage Pending" AND resolution = Unresolved'
-  // - 'status = "In Progress" AND resolution = Unresolved'
-  // - 'priority = P1 AND status != Done AND status != Closed'
-  // - 'resolutiondate >= startOfDay()'
-  
-  // Placeholder response
-  res.json({
-    triagePending: 15, // Mock
-    inProgress: 28,    // Mock
-    activeP1: 3,       // Mock
-    completedToday: 8, // Mock
-  });
+  try {
+    // Define the base query parts (can be adjusted based on overall dashboard scope)
+    const projectAndType = `project = SWDEV AND issuetype = Defect`;
+    const triageAssignment = `"Triage Assignment" = "[1637333]"`;
+
+    // --- Triage Pending Count --- 
+    const triagePendingJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_PENDING`;
+    const triagePendingResult = await jiraService.searchIssues(triagePendingJql, { maxResults: 0 }); // Fetch only count
+    const triagePendingCount = triagePendingResult.total || 0;
+
+    // --- Placeholder for other counts --- 
+    // TODO: Implement similar JQL searches for other cards (In Progress, Active P1, Completed Today)
+    const inProgressCount = 28; // Mock
+    const activeP1Count = 3;    // Mock
+    const completedTodayCount = 8; // Mock
+
+    // Return the counts
+    res.json({
+      triagePending: triagePendingCount,
+      inProgress: inProgressCount,    
+      activeP1: activeP1Count,       
+      completedToday: completedTodayCount, 
+    });
+
+  } catch (error) {
+    console.error("Error fetching dashboard summary data:", error);
+    // Send a generic error response or re-throw for global handler
+    res.status(500).json({ message: "Failed to fetch dashboard summary data" });
+  }
 });
 
 exports.searchTickets = asyncHandler(async (req, res) => {
