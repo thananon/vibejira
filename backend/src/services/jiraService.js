@@ -4,9 +4,9 @@ const config = require('../config');
 // Flag for debug logging
 const JIRA_DEBUG_ENABLED = process.env.JIRA_API_DEBUG === 'true';
 
-// Create an axios instance pre-configured for JIRA API v3 (Cloud)
+// Create an axios instance pre-configured for JIRA API v2 (Cloud)
 const jiraApi = axios.create({
-  baseURL: `${config.jiraBaseUrl}/rest/api/3`,
+  baseURL: `${config.jiraBaseUrl}/rest/api/2`,
   headers: {
     Authorization: `Bearer ${config.jiraPat}`,
     Accept: 'application/json',
