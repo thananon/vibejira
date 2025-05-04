@@ -1,6 +1,5 @@
 const express = require('express');
 const ticketRoutes = require('./tickets');
-const authRoutes = require('./auth'); // We might need auth status under /api too
 
 const router = express.Router();
 

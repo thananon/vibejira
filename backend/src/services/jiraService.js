@@ -2,39 +2,32 @@ const axios = require('axios');
 const config = require('../config');
 
 // Create an axios instance pre-configured for JIRA API v3 (Cloud)
-// Use v2 if targeting older JIRA Server/DC instances specifically
 const jiraApi = axios.create({
-  baseURL: `${config.jiraBaseUrl}/rest/api/3`, // Use API v3 for Cloud
-});
-
-// Helper to add Authorization header
-const getAuthHeaders = (accessToken) => ({
-  Authorization: `Bearer ${accessToken}`,
-  Accept: 'application/json',
+  baseURL: `${config.jiraBaseUrl}/rest/api/3`,
+  headers: {
+    Authorization: `Bearer ${config.jiraPat}`,
+    Accept: 'application/json',
+  }
 });
 
 // --- Service Functions --- 
 
 /**
  * Searches for JIRA issues using JQL.
- * @param {string} accessToken - The user's JIRA access token.
  * @param {string} jql - The JIRA Query Language string.
  * @param {object} options - Optional parameters like fields, maxResults, startAt.
  * @returns {Promise<object>} - The search results from JIRA.
  */
-const searchIssues = async (accessToken, jql, options = {}) => {
+const searchIssues = async (jql, options = {}) => {
   try {
     const params = {
       jql: jql,
-      fields: options.fields || 'summary,status,issuetype,priority,created,updated', // Default fields
+      fields: options.fields || 'summary,status,issuetype,priority,created,updated',
       maxResults: options.maxResults || 50,
       startAt: options.startAt || 0,
-      validateQuery: 'strict', // Recommended
+      validateQuery: 'strict',
     };
-    const response = await jiraApi.get('/search', {
-      headers: getAuthHeaders(accessToken),
-      params: params,
-    });
+    const response = await jiraApi.get('/search', { params });
     return response.data;
   } catch (error) {
     console.error('JIRA API Error (searchIssues):', error.response ? error.response.data : error.message);
@@ -44,21 +37,17 @@ const searchIssues = async (accessToken, jql, options = {}) => {
 
 /**
  * Fetches details for a specific issue, optionally expanding fields like comments or changelog.
- * @param {string} accessToken - The user's JIRA access token.
  * @param {string} issueIdOrKey - The JIRA issue ID or key (e.g., 'PROJECT-123').
  * @param {object} options - Optional parameters like fields, expand.
  * @returns {Promise<object>} - The issue details from JIRA.
  */
-const getIssue = async (accessToken, issueIdOrKey, options = {}) => {
+const getIssue = async (issueIdOrKey, options = {}) => {
   try {
     const params = {
-      fields: options.fields, // Fetch specific fields if provided
-      expand: options.expand, // Expand specific fields like 'changelog' or 'comment'
+      fields: options.fields,
+      expand: options.expand,
     };
-    const response = await jiraApi.get(`/issue/${issueIdOrKey}`, {
-      headers: getAuthHeaders(accessToken),
-      params: params,
-    });
+    const response = await jiraApi.get(`/issue/${issueIdOrKey}`, { params });
     return response.data;
   } catch (error) {
     console.error(`JIRA API Error (getIssue ${issueIdOrKey}):`, error.response ? error.response.data : error.message);
@@ -68,20 +57,17 @@ const getIssue = async (accessToken, issueIdOrKey, options = {}) => {
 
 /**
  * Fetches comments for a specific issue.
- * @param {string} accessToken - The user's JIRA access token.
  * @param {string} issueIdOrKey - The JIRA issue ID or key.
  * @returns {Promise<object>} - The comments data from JIRA.
  */
-const getIssueComments = async (accessToken, issueIdOrKey) => {
+const getIssueComments = async (issueIdOrKey) => {
     try {
-        // Note: JIRA API v3 endpoint for comments
         const response = await jiraApi.get(`/issue/${issueIdOrKey}/comment`, {
-            headers: getAuthHeaders(accessToken),
             params: {
-                orderBy: '-created' // Get newest comments first
+                orderBy: '-created'
             }
         });
-        return response.data; // Structure usually includes { startAt, maxResults, total, comments: [...] }
+        return response.data;
     } catch (error) {
         console.error(`JIRA API Error (getIssueComments ${issueIdOrKey}):`, error.response ? error.response.data : error.message);
         throw new Error(`Failed to get comments for JIRA issue ${issueIdOrKey}: ${error.message}`);
@@ -90,18 +76,14 @@ const getIssueComments = async (accessToken, issueIdOrKey) => {
 
 /**
  * Adds a comment to a specific issue.
- * @param {string} accessToken - The user's JIRA access token.
  * @param {string} issueIdOrKey - The JIRA issue ID or key.
  * @param {string} commentBody - The text content of the comment.
  * @returns {Promise<object>} - The newly created comment object from JIRA.
  */
-const addIssueComment = async (accessToken, issueIdOrKey, commentBody) => {
+const addIssueComment = async (issueIdOrKey, commentBody) => {
     try {
         const response = await jiraApi.post(`/issue/${issueIdOrKey}/comment`, 
-            { body: commentBody }, // JIRA API v3 expects body in simple format
-            {
-                headers: getAuthHeaders(accessToken),
-            }
+            { body: commentBody }
         );
         return response.data;
     } catch (error) {
@@ -112,24 +94,18 @@ const addIssueComment = async (accessToken, issueIdOrKey, commentBody) => {
 
 /**
  * Updates an issue, commonly used for adding labels.
- * @param {string} accessToken - The user's JIRA access token.
  * @param {string} issueIdOrKey - The JIRA issue ID or key.
- * @param {object} updatePayload - The payload describing the update (e.g., { fields: { labels: ["new-label"] } } or { update: { labels: [{add: "new-label"}] } }).
+ * @param {object} updatePayload - The payload describing the update.
  * @returns {Promise<void>} - Resolves on success.
  */
-const updateIssue = async (accessToken, issueIdOrKey, updatePayload) => {
+const updateIssue = async (issueIdOrKey, updatePayload) => {
     try {
-        // Use PUT for updating fields
-        await jiraApi.put(`/issue/${issueIdOrKey}`, updatePayload, {
-            headers: getAuthHeaders(accessToken),
-        });
-        // PUT usually returns 204 No Content on success
+        await jiraApi.put(`/issue/${issueIdOrKey}`, updatePayload);
     } catch (error) {
         console.error(`JIRA API Error (updateIssue ${issueIdOrKey}):`, error.response ? error.response.data : error.message);
         throw new Error(`Failed to update JIRA issue ${issueIdOrKey}: ${error.message}`);
     }
 };
-
 
 module.exports = {
   searchIssues,

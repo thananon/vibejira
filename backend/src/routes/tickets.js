@@ -1,11 +1,7 @@
 const express = require('express');
 const ticketController = require('../controllers/ticketController');
-const { requireAuth } = require('../middleware/authMiddleware');
 
 const router = express.Router();
-
-// Apply auth middleware to all ticket routes
-router.use(requireAuth);
 
 // Route to get dashboard summary data (top cards)
 router.get('/summary', ticketController.getDashboardSummary);
@@ -24,6 +20,5 @@ router.put('/:issueKey/labels', ticketController.addLabel);
 
 // Route to get history for a specific ticket
 router.get('/:issueKey/history', ticketController.getHistory);
-
 
 module.exports = router; 

@@ -54,7 +54,6 @@ exports.searchTickets = asyncHandler(async (req, res) => {
          searchJql = 'status = Done ORDER BY resolutiondate DESC';
          break;
       default:
-        // Default search if no filter or JQL provided (e.g., assigned to user)
         searchJql = 'assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC'; 
     }
   }
@@ -69,37 +68,36 @@ exports.searchTickets = asyncHandler(async (req, res) => {
     maxResults: parseInt(maxResults, 10) || 50 
   };
   
-  const results = await jiraService.searchIssues(req.accessToken, searchJql, options);
+  const results = await jiraService.searchIssues(searchJql, options);
   res.json(results);
 });
 
 exports.getComments = asyncHandler(async (req, res) => {
   const { issueKey } = req.params;
-  const commentsData = await jiraService.getIssueComments(req.accessToken, issueKey);
+  const commentsData = await jiraService.getIssueComments(issueKey);
   res.json(commentsData);
 });
 
 exports.addComment = asyncHandler(async (req, res) => {
   const { issueKey } = req.params;
-  const { body } = req.body; // Expect comment body in request body
+  const { body } = req.body;
 
   if (!body) {
     return res.status(400).json({ message: 'Comment body is required.' });
   }
 
-  const newComment = await jiraService.addIssueComment(req.accessToken, issueKey, body);
+  const newComment = await jiraService.addIssueComment(issueKey, body);
   res.status(201).json(newComment);
 });
 
 exports.addLabel = asyncHandler(async (req, res) => {
     const { issueKey } = req.params;
-    const { label } = req.body; // Expect a single label for simplicity for now
+    const { label } = req.body;
 
     if (!label) {
         return res.status(400).json({ message: 'Label is required.' });
     }
 
-    // JIRA API expects updates via specific operations
     const updatePayload = {
         update: {
             labels: [
@@ -108,14 +106,12 @@ exports.addLabel = asyncHandler(async (req, res) => {
         }
     };
 
-    await jiraService.updateIssue(req.accessToken, issueKey, updatePayload);
-    res.status(204).send(); // No content on success
+    await jiraService.updateIssue(issueKey, updatePayload);
+    res.status(204).send();
 });
 
 exports.getHistory = asyncHandler(async (req, res) => {
   const { issueKey } = req.params;
-  // Use the getIssue service, expanding the 'changelog' field
-  const issueData = await jiraService.getIssue(req.accessToken, issueKey, { expand: 'changelog' });
-  // Return the whole issue data for now, frontend can extract changelog
+  const issueData = await jiraService.getIssue(issueKey, { expand: 'changelog' });
   res.json(issueData);
 }); 
