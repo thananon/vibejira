@@ -58,45 +58,53 @@ const Dashboard = () => {
   const [p2Visible, setP2Visible] = useState(true);
   const [otherVisible, setOtherVisible] = useState(true);
 
-  // State for date filtering
-  const [selectedDateFilter, setSelectedDateFilter] = useState('all'); // 'week', 'month', 'all', 'range'
+  // State for date filtering - Set default to 'week'
+  const [selectedDateFilter, setSelectedDateFilter] = useState('week');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // --- Fetch Data --- 
+  // State for main button filtering - Set default to 'ongoing'
+  const [activeButtonFilter, setActiveButtonFilter] = useState('ongoing'); // 'ongoing', 'done'
+
+  // --- Fetch Tickets --- 
   useEffect(() => {
-    // Define fetchTickets inside useEffect to capture current state
     const fetchTickets = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Base JQL query (can be moved outside useEffect if static)
-        const baseJql = `project = SWDEV AND issuetype = Defect AND "Triage Assignment" = "[1637333]" AND labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_REJECTED, RCCL_TRIAGE_NEED_MORE_INFO)`;
+        // Base JQL parts
+        const projectAndType = `project = SWDEV AND issuetype = Defect`; // Keep this consistent
+        const triageAssignment = `"Triage Assignment" = "[1637333]"`; // Assuming this is consistent
+        const labels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_REJECTED, RCCL_TRIAGE_NEED_MORE_INFO)`; // Assuming consistent
+
+        let statusFilterJql = '';
+        if (activeButtonFilter === 'ongoing') {
+          statusFilterJql = ' AND status in (Opened, Assessed, Analyzed)';
+        } else if (activeButtonFilter === 'done') {
+          statusFilterJql = ' AND status in (Implemented, Closed, Rejected)';
+        }
         
         let dateFilterJql = '';
+        // Use the default 'week' filter if selected
         if (selectedDateFilter === 'week') {
-          dateFilterJql = ' AND updated >= -7d';
+          dateFilterJql = ' AND updated >= -7d'; 
         } else if (selectedDateFilter === 'month') {
           dateFilterJql = ' AND updated >= -30d';
         } else if (selectedDateFilter === 'range' && startDate && endDate) {
-          // Format dates as YYYY-MM-DD for JQL
           dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
         } else if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
-           // If range is selected but dates are incomplete, don't fetch yet
            console.log("Range selected, waiting for both dates.");
-           setLoading(false); // Stop loading indicator
-           // Optional: Clear tickets or show a message
-           // setTickets([]); 
-           return; // Exit fetchTickets early
+           setLoading(false); 
+           return; 
         }
+        // Note: 'all' date filter doesn't add a date clause
 
         // Combine JQL parts
-        const finalJql = baseJql + dateFilterJql + ' ORDER BY updated DESC'; // Add ordering
+        const finalJql = `${projectAndType} AND ${triageAssignment} AND ${labels}${statusFilterJql}${dateFilterJql} ORDER BY updated DESC`;
         const encodedJql = encodeURIComponent(finalJql);
-        // Increase maxResults for potentially larger date ranges
         const url = `${API_BASE_URL}/api/tickets?jql=${encodedJql}&maxResults=100`; 
 
-        console.log(`Fetching tickets with JQL: ${finalJql}`); // Log the actual JQL
+        console.log(`Fetching tickets with JQL: ${finalJql}`); 
         console.log(`Fetching tickets from URL: ${url}`);
 
         const response = await fetch(url);
@@ -106,28 +114,26 @@ const Dashboard = () => {
           throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Failed to fetch tickets'}`);
         }
         const data = await response.json();
-        console.log('Fetched data:', data); // Debug log
+        console.log('Fetched data:', data);
 
         if (data && Array.isArray(data.issues)) {
           setTickets(data.issues); 
         } else {
           console.error('Unexpected API response structure:', data);
-          // Keep existing tickets or clear them?
-          // setTickets([]); 
           throw new Error('Received unexpected data structure from API.');
         }
       } catch (err) {
         console.error('Fetch error:', err);
         setError(err.message);
-        setTickets([]); // Clear tickets on error
+        setTickets([]); 
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTickets(); // Call the inner function
+    fetchTickets(); 
 
-  }, [selectedDateFilter, startDate, endDate]); // Dependency array - run effect when these change
+  }, [selectedDateFilter, startDate, endDate, activeButtonFilter]); // Added activeButtonFilter dependency
 
   // --- Fetch Comments --- 
   const fetchComments = async (issueKey) => {
@@ -206,6 +212,12 @@ const Dashboard = () => {
      // No explicit fetch needed here, useEffect handles it when startDate also changes (or if already set)
   };
 
+  // Event Handler for Main Filter Buttons
+  const handleMainFilterClick = (filterType) => {
+    setActiveButtonFilter(filterType);
+    // Fetching is handled by useEffect due to state change
+  };
+
   // --- Render Functions --- 
   const renderTable = (data, title, isVisible, toggleVisibility) => {
     // TODO: Get JIRA_BASE_URL from config/context for full links
@@ -270,12 +282,24 @@ const Dashboard = () => {
           JIRA Ticket Dashboard (Project: SWDEV)
         </CCardHeader>
         <CCardBody>
+          {/* Main Filter Buttons */}
           <div className="mb-3">
-            <CButtonGroup role="group" aria-label="JIRA Query Buttons">
-              <CButton color="primary">My Open Issues</CButton>
-              <CButton color="secondary">Reported by Me</CButton>
-              <CButton color="success">All Issues</CButton>
-              <CButton color="warning">Done Issues</CButton>
+            <CButtonGroup role="group" aria-label="Main Ticket Filter Buttons">
+              <CButton 
+                color="primary" 
+                variant={activeButtonFilter === 'ongoing' ? undefined : 'outline'}
+                onClick={() => handleMainFilterClick('ongoing')}
+              >
+                Ongoing Issues
+              </CButton>
+              <CButton 
+                color="success" 
+                variant={activeButtonFilter === 'done' ? undefined : 'outline'}
+                onClick={() => handleMainFilterClick('done')}
+              >
+                Done
+              </CButton>
+              {/* Removed other buttons for now */}
             </CButtonGroup>
           </div>
 
@@ -428,7 +452,7 @@ const Dashboard = () => {
             <>
               {selectedTicketComments.length > 0 ? (
                 selectedTicketComments.map((comment) => (
-                  <CCard key={comment.id} className="mb-2 bg-light">
+                  <CCard key={comment.id} className="mb-2">
                     <CCardBody className="p-2">
                       <div className="d-flex justify-content-between align-items-center mb-1">
                         <small className="fw-bold">{comment.author?.displayName || 'Unknown User'}</small>
@@ -436,9 +460,9 @@ const Dashboard = () => {
                           {comment.created ? formatDistanceToNow(new Date(comment.created), { addSuffix: true }) : ''}
                         </small>
                       </div>
-                       {/* TODO: Render comment body correctly if it uses Atlassian Document Format (ADF) */}
-                       {/* For now, assuming plain text body */} 
-                      <p className="mb-0" style={{ whiteSpace: 'pre-wrap' }}>{comment.body}</p>
+                       {/* Render comment body as HTML. Assumes Jira provides sanitized HTML. */}
+                       {/* If body is Atlassian Document Format (ADF), a specific renderer would be needed. */}
+                       <div dangerouslySetInnerHTML={{ __html: comment.body || '' }}></div>
                     </CCardBody>
                   </CCard>
                 ))
