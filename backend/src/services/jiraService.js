@@ -172,10 +172,27 @@ const updateIssue = async (issueIdOrKey, updatePayload) => {
     }
 };
 
+/**
+ * Fetches details for the currently authenticated user (via PAT).
+ * @returns {Promise<object>} - The user details object from JIRA.
+ */
+const getMyself = async () => {
+  try {
+    // This endpoint confirms the PAT is valid and retrieves user associated with it
+    const response = await jiraApi.get('/myself');
+    return response.data;
+  } catch (error) {
+    console.error('JIRA API Error (getMyself):', error.response ? error.response.data : error.message);
+    // Re-throw the error so the caller knows it failed
+    throw new Error(`Failed to fetch JIRA user details: ${error.message}`);
+  }
+};
+
 module.exports = {
   searchIssues,
   getIssue,
   getIssueComments,
   addIssueComment,
   updateIssue,
+  getMyself,
 }; 
