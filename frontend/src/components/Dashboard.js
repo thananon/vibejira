@@ -20,6 +20,7 @@ import {
   CRow,
   CCol,
   CFormLabel,
+  CSpinner,
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
 import {
@@ -47,7 +48,10 @@ const Dashboard = () => {
   // State for sidebar
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [selectedTicketKey, setSelectedTicketKey] = useState(null);
+  const [selectedTicketData, setSelectedTicketData] = useState(null);
   const [selectedTicketComments, setSelectedTicketComments] = useState([]);
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentError, setCommentError] = useState(null);
 
   // State for collapsible sections
   const [p1Visible, setP1Visible] = useState(true);
@@ -125,6 +129,36 @@ const Dashboard = () => {
 
   }, [selectedDateFilter, startDate, endDate]); // Dependency array - run effect when these change
 
+  // --- Fetch Comments --- 
+  const fetchComments = async (issueKey) => {
+    if (!issueKey) return;
+    setCommentLoading(true);
+    setCommentError(null);
+    setSelectedTicketComments([]); // Clear previous comments
+    try {
+      const url = `${API_BASE_URL}/api/tickets/${issueKey}/comments`;
+      console.log(`Fetching comments from: ${url}`);
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Failed to fetch comments'}`);
+      }
+      const data = await response.json();
+      console.log('Fetched comments data:', data);
+      if (data && Array.isArray(data.comments)) {
+        setSelectedTicketComments(data.comments);
+      } else {
+         console.error('Unexpected comments API response structure:', data);
+         throw new Error('Received unexpected comments structure from API.');
+      }
+    } catch (err) {
+      console.error('Fetch comments error:', err);
+      setCommentError(err.message);
+      setSelectedTicketComments([]); // Ensure comments are cleared on error
+    } finally {
+      setCommentLoading(false);
+    }
+  };
 
   // --- Data Filtering (Priority) --- 
   // Helper to categorize priority for section filtering
@@ -144,11 +178,12 @@ const Dashboard = () => {
   const otherTickets = tickets.filter(ticket => getPriorityCategory(ticket) === 'Other');
 
   // --- Event Handlers --- 
-  // Function to handle row click - adapted for JIRA key
   const handleRowClick = (ticket) => {
     setSelectedTicketKey(ticket.key); 
-    setSelectedTicketComments([]); // Clear mock comments - TODO: Fetch real comments later
+    setSelectedTicketData(ticket);
     setSidebarVisible(true);
+    // Fetch comments when row is clicked
+    fetchComments(ticket.key);
   };
 
   // Event Handlers for Date Filters
@@ -191,7 +226,7 @@ const Dashboard = () => {
                   <CTableHeaderCell scope="col">Summary</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Priority</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Status</CTableHeaderCell>
-                  <CTableHeaderCell scope="col">Created</CTableHeaderCell>
+                  <CTableHeaderCell scope="col">Assignee</CTableHeaderCell>
                   <CTableHeaderCell scope="col">Updated</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
@@ -211,9 +246,7 @@ const Dashboard = () => {
                     <CTableDataCell>{ticket.fields?.summary}</CTableDataCell>
                     <CTableDataCell>{ticket.fields?.priority?.name || ''}</CTableDataCell>
                     <CTableDataCell>{ticket.fields?.status?.name || ''}</CTableDataCell>
-                    <CTableDataCell>
-                      {ticket.fields?.created ? formatDistanceToNow(new Date(ticket.fields.created), { addSuffix: true }) : ''}
-                    </CTableDataCell>
+                    <CTableDataCell>{ticket.fields?.assignee?.displayName || 'Unassigned'}</CTableDataCell>
                     <CTableDataCell>
                       {ticket.fields?.updated ? formatDistanceToNow(new Date(ticket.fields.updated), { addSuffix: true }) : ''}
                     </CTableDataCell>
@@ -363,6 +396,12 @@ const Dashboard = () => {
           <CCloseButton className="text-reset" onClick={() => setSidebarVisible(false)} />
         </COffcanvasHeader>
         <COffcanvasBody>
+          {selectedTicketData?.fields?.created && (
+            <p className="text-muted mb-2">
+              Created: {formatDistanceToNow(new Date(selectedTicketData.fields.created), { addSuffix: true })}
+            </p>
+          )}
+          
           <div className="mb-3">
             <CButton color="primary" className="me-2" disabled>
               <CIcon icon={cilCommentBubble} className="me-1"/> Add Comment
@@ -375,15 +414,38 @@ const Dashboard = () => {
             </CButton>
           </div>
 
-          <h5>Comments</h5>
-          {selectedTicketComments.length > 0 ? (
-            selectedTicketComments.map((comment) => (
-              <div key={comment.id} className="mb-2 p-2 border rounded bg-light text-dark">
-                <strong>{comment.author}:</strong> {comment.body}
-              </div>
-            ))
-          ) : (
-            <p>No comments yet.</p>
+          <h5 className="mt-4">Comments</h5>
+          {commentLoading && (
+            <div className="text-center">
+              <CSpinner color="primary" />
+              <p>Loading comments...</p>
+            </div>
+          )}
+          {commentError && (
+            <p className="text-danger">Error loading comments: {commentError}</p>
+          )}
+          {!commentLoading && !commentError && (
+            <>
+              {selectedTicketComments.length > 0 ? (
+                selectedTicketComments.map((comment) => (
+                  <CCard key={comment.id} className="mb-2 bg-light">
+                    <CCardBody className="p-2">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <small className="fw-bold">{comment.author?.displayName || 'Unknown User'}</small>
+                        <small className="text-muted">
+                          {comment.created ? formatDistanceToNow(new Date(comment.created), { addSuffix: true }) : ''}
+                        </small>
+                      </div>
+                       {/* TODO: Render comment body correctly if it uses Atlassian Document Format (ADF) */}
+                       {/* For now, assuming plain text body */} 
+                      <p className="mb-0" style={{ whiteSpace: 'pre-wrap' }}>{comment.body}</p>
+                    </CCardBody>
+                  </CCard>
+                ))
+              ) : (
+                <p className="text-muted">No comments to display.</p>
+              )}
+            </>
           )}
         </COffcanvasBody>
       </COffcanvas>
