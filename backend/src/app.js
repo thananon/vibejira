@@ -31,7 +31,9 @@ app.use((err, req, res, next) => {
 });
 
 // --- Start Server --- 
-app.listen(config.port, () => {
-  console.log(`Server listening on port ${config.port}`);
+// Explicitly specify host '0.0.0.0' to listen on all IPv4 and IPv6 interfaces 
+// if available, making it accessible via localhost, 127.0.0.1, and network IPs.
+app.listen(config.port, '0.0.0.0', () => {
+  console.log(`Server listening on port ${config.port} (IPv4/IPv6)`);
   console.log(`Allowed frontend origin: ${config.frontendOrigin}`);
 }); 
