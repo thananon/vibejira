@@ -39,8 +39,8 @@ import { formatDistanceToNow } from 'date-fns';
 
 // Base URL for the backend API
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
-// JIRA Base URL from environment variable
-const JIRA_BROWSE_URL = process.env.REACT_APP_JIRA_BASE_URL || '#'; // Fallback to '#' if not set
+// Removed JIRA_BROWSE_URL constant reading from process.env
+// const JIRA_BROWSE_URL = process.env.REACT_APP_JIRA_BASE_URL || '#'; 
 
 const Dashboard = () => {
   // State for fetched tickets, loading, and error
@@ -69,22 +69,32 @@ const Dashboard = () => {
   // State for main button filtering - Set default to 'ongoing'
   const [activeButtonFilter, setActiveButtonFilter] = useState('ongoing'); // 'ongoing', 'done'
 
-  // --- Helper Function for State --- 
-  const getStateFromLabels = (labels = []) => {
-    if (labels.includes('RCCL_TRIAGE_PENDING')) {
-      return { text: 'Need Triage', color: 'warning' };
-    }
-    if (labels.includes('RCCL_TRIAGE_COMPLETED')) {
-      return { text: 'Triaged', color: 'success' };
-    }
-    if (labels.includes('RCCL_TRIAGE_NEED_MORE_INFO')) {
-      return { text: 'Waiting', color: 'info' };
-    }
-    if (labels.includes('RCCL_TRIAGE_REJECTED')) {
-      return { text: 'Rejected', color: 'danger' };
-    }
-    return { text: 'Unknown', color: 'secondary' }; // Default/fallback state
-  };
+  // State for Jira Base URL fetched from backend
+  const [jiraConfigUrl, setJiraConfigUrl] = useState('');
+
+  // --- Fetch Config --- 
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/config`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch config');
+        }
+        const configData = await response.json();
+        if (configData.jiraBaseUrl) {
+          setJiraConfigUrl(configData.jiraBaseUrl);
+          console.log('Fetched JIRA Base URL:', configData.jiraBaseUrl);
+        } else {
+           console.warn('JIRA Base URL not found in backend config.');
+           setJiraConfigUrl('#'); // Set to fallback if not provided
+        }
+      } catch (err) {
+        console.error('Error fetching config:', err);
+        setJiraConfigUrl('#'); // Set to fallback on error
+      }
+    };
+    fetchConfig();
+  }, []); // Run once on mount
 
   // --- Fetch Tickets --- 
   useEffect(() => {
@@ -186,6 +196,23 @@ const Dashboard = () => {
     }
   };
 
+  // --- Helper Function for State --- 
+  const getStateFromLabels = (labels = []) => {
+    if (labels.includes('RCCL_TRIAGE_PENDING')) {
+      return { text: 'Need Triage', color: 'warning' };
+    }
+    if (labels.includes('RCCL_TRIAGE_COMPLETED')) {
+      return { text: 'Triaged', color: 'success' };
+    }
+    if (labels.includes('RCCL_TRIAGE_NEED_MORE_INFO')) {
+      return { text: 'Waiting', color: 'info' };
+    }
+    if (labels.includes('RCCL_TRIAGE_REJECTED')) {
+      return { text: 'Rejected', color: 'danger' };
+    }
+    return { text: 'Unknown', color: 'secondary' }; // Default/fallback state
+  };
+
   // --- Data Filtering (Priority) --- 
   // Helper to categorize priority for section filtering
   const getPriorityCategory = (ticket) => {
@@ -240,9 +267,7 @@ const Dashboard = () => {
 
   // --- Render Functions --- 
   const renderTable = (data, title, isVisible, toggleVisibility) => {
-    // Removed hardcoded placeholder, using value read from process.env above
-    // const jiraBaseUrl = 'https://your-jira-instance.atlassian.net'; 
-
+    // Use jiraConfigUrl state variable here
     return (
       <div className="mb-4">
         <h4 onClick={toggleVisibility} style={{ cursor: 'pointer' }} className="d-flex justify-content-between align-items-center">
@@ -270,15 +295,17 @@ const Dashboard = () => {
                   return (
                     <CTableRow key={ticket.id} onClick={() => handleRowClick(ticket)} style={{ cursor: 'pointer' }}>
                       <CTableDataCell>
-                        {/* Use JIRA_BROWSE_URL from environment */}
+                        {/* Use jiraConfigUrl from state */}
                         <a 
-                          href={`${JIRA_BROWSE_URL}/browse/${ticket.key}`} 
+                          href={jiraConfigUrl && jiraConfigUrl !== '#' ? `${jiraConfigUrl}/browse/${ticket.key}` : '#'} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           onClick={(e) => {
-                             if (JIRA_BROWSE_URL === '#') e.preventDefault(); // Prevent navigation if URL is placeholder
+                             if (!jiraConfigUrl || jiraConfigUrl === '#') e.preventDefault(); // Prevent navigation if URL is invalid/placeholder
                              e.stopPropagation();
                           }}
+                          // Optionally disable link visually if URL is not available
+                          style={{ pointerEvents: (!jiraConfigUrl || jiraConfigUrl === '#') ? 'none' : 'auto', color: (!jiraConfigUrl || jiraConfigUrl === '#') ? 'inherit' : undefined }}
                         >
                           {ticket.key}
                         </a>
