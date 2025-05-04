@@ -231,7 +231,7 @@ const Dashboard = () => {
       {/* Sidebar Canvas */}
       <COffcanvas placement="end" visible={sidebarVisible} onHide={() => setSidebarVisible(false)}>
         <COffcanvasHeader>
-          <COffcanvasTitle>Details for {selectedTicketKey}</COffcanvasTitle> // Changed title slightly
+          <COffcanvasTitle>Details for {selectedTicketKey}</COffcanvasTitle> {/* Changed title slightly */}
           <CCloseButton className="text-reset" onClick={() => setSidebarVisible(false)} />
         </COffcanvasHeader>
         <COffcanvasBody>

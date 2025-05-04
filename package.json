@@ -1,5 +1,5 @@
 {
-  "name": "vibejira-frontend",
+  "name": "vibejira-monorepo",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -13,12 +13,19 @@
     "web-vitals": "^4.0.0"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "start:all": "concurrently \"npm run dev --prefix backend\" \"npm start\"",
-    "start:all:debug": "concurrently \"npm run debug --prefix backend\" \"npm start\""
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "postinstall": "npm run install:all",
+    "start:frontend": "cd frontend && npm start",
+    "start:backend": "cd backend && npm start",
+    "dev:frontend": "cd frontend && npm start",
+    "dev:backend": "cd backend && npm run dev",
+    "start": "concurrently \"npm:start:backend\" \"npm:start:frontend\"",
+    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "build:frontend": "cd frontend && npm run build",
+    "test:frontend": "cd frontend && npm test",
+    "eject:frontend": "cd frontend && npm run eject"
   },
   "eslintConfig": {
     "extends": [
@@ -39,6 +46,6 @@
     ]
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^8.2.2"
   }
 }
