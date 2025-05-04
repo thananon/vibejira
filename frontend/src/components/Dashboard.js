@@ -72,7 +72,7 @@ const Dashboard = () => {
   const [endDate, setEndDate] = useState('');
 
   // State for main button filtering - Set default to 'ongoing'
-  const [activeButtonFilter, setActiveButtonFilter] = useState('ongoing'); // 'ongoing', 'triagePending', 'done'
+  const [activeButtonFilter, setActiveButtonFilter] = useState('ongoing'); // 'ongoing', 'triagePending', 'done', 'rejected'
 
   // State for Jira Base URL fetched from backend
   const [jiraConfigUrl, setJiraConfigUrl] = useState('');
@@ -152,14 +152,17 @@ const Dashboard = () => {
            // Special JQL for Triage Pending - Ignores Status, Assignee, Date
            finalJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_PENDING ORDER BY updated DESC`;
         } else {
-          // Logic for 'ongoing' and 'done' filters (which include other filters)
-          const labels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_REJECTED, RCCL_TRIAGE_NEED_MORE_INFO)`; // Keep base label filter for these views
+          // Logic for 'ongoing', 'done', and 'rejected' filters (which include other filters)
+          const labels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`; // Base label filter remains
 
           let statusFilterJql = '';
           if (activeButtonFilter === 'ongoing') {
             statusFilterJql = ' AND status in (Opened, Assessed, Analyzed)';
           } else if (activeButtonFilter === 'done') {
-            statusFilterJql = ' AND status in (Implemented, Closed, Rejected)';
+            // Updated Done filter to exclude Rejected
+            statusFilterJql = ' AND status in (Implemented, Closed)'; 
+          } else if (activeButtonFilter === 'rejected') {
+            statusFilterJql = ' AND status = Rejected';
           }
 
           let dateFilterJql = '';
@@ -184,7 +187,7 @@ const Dashboard = () => {
             assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
           }
           
-          // Combine JQL parts for ongoing/done views
+          // Combine JQL parts for ongoing/done/rejected views
           finalJql = `${projectAndType} AND ${triageAssignment} AND ${labels}${statusFilterJql}${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
         }
 
@@ -440,6 +443,13 @@ const Dashboard = () => {
                 onClick={() => handleMainFilterClick('done')}
               >
                 Done
+              </CButton>
+              <CButton 
+                color="danger" 
+                variant={activeButtonFilter === 'rejected' ? undefined : 'outline'}
+                onClick={() => handleMainFilterClick('rejected')}
+              >
+                Rejected
               </CButton>
             </CButtonGroup>
           </div>
