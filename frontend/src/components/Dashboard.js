@@ -62,7 +62,7 @@ const Dashboard = () => {
   const [commentError, setCommentError] = useState(null);
 
   // State for Summary Cards
-  const [summaryData, setSummaryData] = useState({ triagePending: '-', inProgress: '-', activeP1: '-', completedToday: '-', rejected: '-' });
+  const [summaryData, setSummaryData] = useState({ triagePending: '-', inProgress: '-', activeP1: '-', waitingForInfo: '-', completedToday: '-', rejected: '-' });
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState(null);
 
@@ -153,6 +153,7 @@ const Dashboard = () => {
             triagePending: data.triagePending ?? '-',
             inProgress: data.inProgress ?? '-',
             activeP1: data.activeP1 ?? '-',
+            waitingForInfo: data.waitingForInfo ?? '-',
             completedToday: data.completedToday ?? '-',
             rejected: data.rejected ?? '-',
         });
@@ -760,7 +761,7 @@ const Dashboard = () => {
           {summaryError && <p className="text-danger">Error loading summary: {summaryError}</p>}
           {!summaryLoading && !summaryError && (
             <CRow className="mb-4 text-center">
-              <CCol sm={6} lg className="mb-3 mb-lg-0">
+              <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
                 <CCard textColor="warning">
                   <CCardBody>
                     <CIcon icon={cilWarning} size="xl" className="mb-2" />
@@ -769,7 +770,7 @@ const Dashboard = () => {
                   </CCardBody>
                 </CCard>
               </CCol>
-              <CCol sm={6} lg className="mb-3 mb-lg-0">
+              <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
                 <CCard textColor="info">
                   <CCardBody>
                     <CIcon icon={cilLoopCircular} size="xl" className="mb-2" />
@@ -778,7 +779,7 @@ const Dashboard = () => {
                   </CCardBody>
                 </CCard>
               </CCol>
-              <CCol sm={6} lg className="mb-3 mb-lg-0">
+              <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
                 <CCard textColor="danger">
                   <CCardBody>
                     <CIcon icon={cilFire} size="xl" className="mb-2" />
@@ -787,7 +788,16 @@ const Dashboard = () => {
                   </CCardBody>
                 </CCard>
               </CCol>
-              <CCol sm={6} lg className="mb-3 mb-sm-0">
+              <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
+                <CCard textColor="info">
+                  <CCardBody>
+                    <CIcon icon={cilInfo} size="xl" className="mb-2" />
+                    <div>Waiting for Info</div>
+                    <div className="fs-2 fw-semibold">{summaryData.waitingForInfo}</div>
+                  </CCardBody>
+                </CCard>
+              </CCol>
+              <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
                 <CCard textColor="success">
                   <CCardBody>
                     <CIcon icon={cilCheckCircle} size="xl" className="mb-2" />
@@ -796,15 +806,15 @@ const Dashboard = () => {
                   </CCardBody>
                 </CCard>
               </CCol>
-              <CCol sm={6} lg className="mb-3 mb-sm-0">
-                 <CCard textColor="danger">
-                   <CCardBody>
-                     <CIcon icon={cilXCircle} size="xl" className="mb-2" />
-                     <div>Rejected</div>
-                     <div className="fs-2 fw-semibold">{summaryData.rejected}</div>
-                   </CCardBody>
-                 </CCard>
-               </CCol>
+              <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
+                <CCard textColor="danger">
+                  <CCardBody>
+                    <CIcon icon={cilXCircle} size="xl" className="mb-2" />
+                    <div>Rejected</div>
+                    <div className="fs-2 fw-semibold">{summaryData.rejected}</div>
+                  </CCardBody>
+                </CCard>
+              </CCol>
             </CRow>
           )}
 
