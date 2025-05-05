@@ -832,7 +832,7 @@ const Dashboard = () => {
         </CCardBody>
       </CCard>
 
-      <COffcanvas placement="end" visible={sidebarVisible} onHide={() => setSidebarVisible(false)}>
+      <COffcanvas placement="end" visible={sidebarVisible} onHide={() => setSidebarVisible(false)} style={{ width: '600px' }}>
         <COffcanvasHeader>
           <COffcanvasTitle>Details for {selectedTicketKey}</COffcanvasTitle>
           <CCloseButton className="text-reset" onClick={() => setSidebarVisible(false)} />
@@ -879,6 +879,18 @@ const Dashboard = () => {
             </CButton>
             {/* Add Reject button if needed later */}
             {/* <CButton color="danger" onClick={() => handleUpdateTicketState('rejected')} disabled={isUpdatingState}><CIcon icon={cilBan} className="me-1" /> Reject</CButton> */}
+
+            {/* Go to Ticket Button */}
+            <CButton
+              color="secondary"
+              href={jiraConfigUrl && jiraConfigUrl !== '#' && selectedTicketKey ? `${jiraConfigUrl}/browse/${selectedTicketKey}` : '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              disabled={!jiraConfigUrl || jiraConfigUrl === '#' || !selectedTicketKey}
+              component="a" // Use component="a" for CoreUI button to act as a link
+            >
+              Go to ticket
+            </CButton>
 
             {/* TODO: Implement Refresh */} 
             <CButton color="light" disabled>
