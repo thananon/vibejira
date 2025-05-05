@@ -68,6 +68,11 @@ exports.getDashboardSummary = asyncHandler(async (req, res) => {
     const rejectedResult = await jiraService.searchIssues(rejectedJql, { maxResults: 0 });
     const rejectedCount = rejectedResult.total || 0;
 
+    // Waiting for Info (tickets with RCCL_TRIAGE_NEED_MORE_INFO label)
+    const waitingForInfoJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_NEED_MORE_INFO`;
+    const waitingForInfoResult = await jiraService.searchIssues(waitingForInfoJql, { maxResults: 0 });
+    const waitingForInfoCount = waitingForInfoResult.total || 0;
+
     // Return the counts
     res.json({
       triagePending: triagePendingCount,
@@ -76,6 +81,7 @@ exports.getDashboardSummary = asyncHandler(async (req, res) => {
       completedToday: completedCount, // Renaming key to match frontend expectation for now 
                                        // TODO: Align frontend/backend naming (e.g., use 'completed')
       rejected: rejectedCount,        // Added rejected count
+      waitingForInfo: waitingForInfoCount, // Added waiting for info count
     });
 
   } catch (error) {
