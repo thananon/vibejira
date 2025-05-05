@@ -42,35 +42,37 @@ exports.getDashboardSummary = asyncHandler(async (req, res) => {
     
     // --- Calculate Counts --- 
 
-    // Triage Pending (Specific JQL - Ignores date/assignee/base labels filter)
+    // Define JQL queries
     const triagePendingJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_PENDING`;
-    const triagePendingResult = await jiraService.searchIssues(triagePendingJql, { maxResults: 0 });
-    const triagePendingCount = triagePendingResult.total || 0;
-
-    // In Progress (Uses base filters + status)
     const inProgressJql = `${baseFilterJql} AND status in (Opened, Assessed, Analyzed)`;
-    const inProgressResult = await jiraService.searchIssues(inProgressJql, { maxResults: 0 });
-    const inProgressCount = inProgressResult.total || 0;
-
-    // Active P1 (Uses base filters + status + priority)
-    // Use exact priority name, quoted because it contains spaces/parentheses
     const activeP1Jql = `${baseFilterJql} AND priority = "P1 (Gating)" AND status in (Opened, Assessed, Analyzed)`;
-    const activeP1Result = await jiraService.searchIssues(activeP1Jql, { maxResults: 0 });
-    const activeP1Count = activeP1Result.total || 0;
-
-    // Completed (Uses base filters + status)
     const completedJql = `${baseFilterJql} AND status in (Implemented, Closed)`;
-    const completedResult = await jiraService.searchIssues(completedJql, { maxResults: 0 });
-    const completedCount = completedResult.total || 0;
-
-    // Rejected (Uses base filters + status)
     const rejectedJql = `${baseFilterJql} AND status = Rejected`;
-    const rejectedResult = await jiraService.searchIssues(rejectedJql, { maxResults: 0 });
-    const rejectedCount = rejectedResult.total || 0;
-
-    // Waiting for Info (tickets with RCCL_TRIAGE_NEED_MORE_INFO label)
     const waitingForInfoJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_NEED_MORE_INFO`;
-    const waitingForInfoResult = await jiraService.searchIssues(waitingForInfoJql, { maxResults: 0 });
+
+    // Execute all queries in parallel using Promise.all
+    const [
+      triagePendingResult,
+      inProgressResult,
+      activeP1Result,
+      completedResult,
+      rejectedResult,
+      waitingForInfoResult
+    ] = await Promise.all([
+      jiraService.searchIssues(triagePendingJql, { maxResults: 0 }),
+      jiraService.searchIssues(inProgressJql, { maxResults: 0 }),
+      jiraService.searchIssues(activeP1Jql, { maxResults: 0 }),
+      jiraService.searchIssues(completedJql, { maxResults: 0 }),
+      jiraService.searchIssues(rejectedJql, { maxResults: 0 }),
+      jiraService.searchIssues(waitingForInfoJql, { maxResults: 0 })
+    ]);
+    
+    // Extract counts from results
+    const triagePendingCount = triagePendingResult.total || 0;
+    const inProgressCount = inProgressResult.total || 0;
+    const activeP1Count = activeP1Result.total || 0;
+    const completedCount = completedResult.total || 0;
+    const rejectedCount = rejectedResult.total || 0;
     const waitingForInfoCount = waitingForInfoResult.total || 0;
 
     // Return the counts
