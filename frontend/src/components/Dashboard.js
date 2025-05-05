@@ -22,13 +22,12 @@ import {
   CFormLabel,
   CSpinner,
   CBadge,
-  CFormTextarea,
   CAlert,
+  CFormTextarea,
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
 import {
   cilCommentBubble,
-  cilTags,
   cilReload,
   cilChevronBottom,
   cilChevronTop,
@@ -40,7 +39,6 @@ import {
   cilArrowBottom,
   cilXCircle,
   cilInfo,
-  cilBan,
 } from '@coreui/icons';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -94,6 +92,13 @@ const Dashboard = () => {
   const [isUpdatingState, setIsUpdatingState] = useState(false);
   const [updateStateError, setUpdateStateError] = useState(null);
   const [updateStateSuccess, setUpdateStateSuccess] = useState(false);
+
+  // State for Adding Comment
+  const [showCommentInput, setShowCommentInput] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [isAddingComment, setIsAddingComment] = useState(false);
+  const [addCommentError, setAddCommentError] = useState(null);
+  const [addCommentSuccess, setAddCommentSuccess] = useState(false);
 
   // --- Fetch Config --- 
   useEffect(() => {
@@ -292,7 +297,7 @@ const Dashboard = () => {
   };
 
   // --- Helper Function for State --- 
-  const getStateFromLabels = (labels = []) => {
+  const getStateFromLabels = useCallback((labels = []) => {
     if (labels.includes('RCCL_TRIAGE_PENDING')) {
       return { text: 'Need Triage', color: 'warning' };
     }
@@ -306,7 +311,7 @@ const Dashboard = () => {
       return { text: 'Rejected', color: 'danger' };
     }
     return { text: 'Unknown', color: 'secondary' }; // Default/fallback state
-  };
+  }, []);
 
   // --- Helper Function for Status Color --- 
   const getStatusColor = (statusName = '') => {
@@ -337,7 +342,7 @@ const Dashboard = () => {
   const otherTickets = tickets.filter(ticket => getPriorityCategory(ticket) === 'Other');
 
   // --- Sorting Logic using useMemo --- 
-  const sortData = (items, config) => {
+  const sortData = useCallback((items, config) => {
     const sortedItems = [...items]; 
     if (config.key !== null) {
       sortedItems.sort((a, b) => {
@@ -376,11 +381,11 @@ const Dashboard = () => {
       });
     }
     return sortedItems;
-  };
+  }, [getStateFromLabels]);
 
-  const sortedP1Tickets = useMemo(() => sortData(p1Tickets, sortConfig), [p1Tickets, sortConfig]);
-  const sortedP2Tickets = useMemo(() => sortData(p2Tickets, sortConfig), [p2Tickets, sortConfig]);
-  const sortedOtherTickets = useMemo(() => sortData(otherTickets, sortConfig), [otherTickets, sortConfig]);
+  const sortedP1Tickets = useMemo(() => sortData(p1Tickets, sortConfig), [p1Tickets, sortConfig, sortData]);
+  const sortedP2Tickets = useMemo(() => sortData(p2Tickets, sortConfig), [p2Tickets, sortConfig, sortData]);
+  const sortedOtherTickets = useMemo(() => sortData(otherTickets, sortConfig), [otherTickets, sortConfig, sortData]);
 
   // --- Event Handlers --- 
   const handleRowClick = (ticket) => {
@@ -467,6 +472,49 @@ const Dashboard = () => {
        setTimeout(() => setUpdateStateError(null), 5000); // Hide error message after 5s
     } finally {
       setIsUpdatingState(false);
+    }
+  };
+
+  // --- Handler for Adding Comment --- 
+  const handleAddComment = async () => {
+    if (!selectedTicketKey || !newComment.trim()) return;
+
+    setIsAddingComment(true);
+    setAddCommentError(null);
+    setAddCommentSuccess(false);
+
+    try {
+      const url = `${API_BASE_URL}/api/tickets/${selectedTicketKey}/comments`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // JIRA API expects the comment body in a specific structure
+        // Assuming your backend handles the transformation if necessary,
+        // or expects a simple string like this:
+        body: JSON.stringify({ body: newComment }), 
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Failed to add comment'}`);
+      }
+      
+      setAddCommentSuccess(true);
+      setNewComment(''); // Clear the input field
+      setShowCommentInput(false); // Hide input after success
+      fetchComments(selectedTicketKey); // Refresh comments list
+      // Optionally: Refresh main ticket list if comment affects state/sorting
+      // fetchTickets(); 
+       setTimeout(() => setAddCommentSuccess(false), 3000); // Hide success message after 3s
+
+    } catch (err) {
+      console.error(`Error adding comment:`, err);
+      setAddCommentError(err.message);
+       setTimeout(() => setAddCommentError(null), 5000); // Hide error message after 5s
+    } finally {
+      setIsAddingComment(false);
     }
   };
 
@@ -788,10 +836,14 @@ const Dashboard = () => {
           
           {/* Action Buttons */}
           <div className="mb-3 d-flex flex-wrap gap-2"> {/* Use flex-wrap and gap */}
-            {/* TODO: Implement Add Comment */} 
-             <CButton color="primary" className="me-2" disabled> 
-               <CIcon icon={cilCommentBubble} className="me-1"/> Add Comment
-             </CButton>
+            {/* Add Comment Toggle Button */}
+             <CButton 
+               color="primary" 
+               className="me-2" 
+               onClick={() => setShowCommentInput(!showCommentInput)}
+             > 
+                <CIcon icon={cilCommentBubble} className="me-1"/> Add Comment
+              </CButton>
             
             {/* State Change Buttons */}
             <CButton 
@@ -823,6 +875,33 @@ const Dashboard = () => {
               <CIcon icon={cilReload} className="me-1" /> Refresh
             </CButton>
           </div>
+
+          {/* Conditional Comment Input Area */}
+          {showCommentInput && (
+            <div className="mt-3 border-top pt-3">
+              <CFormTextarea
+                rows={3}
+                placeholder="Enter your comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                disabled={isAddingComment}
+              />
+              <div className="mt-2 d-flex align-items-center">
+                <CButton 
+                  color="success" 
+                  size="sm" 
+                  onClick={handleAddComment}
+                  disabled={isAddingComment || !newComment.trim()}
+                >
+                  {isAddingComment ? <CSpinner size="sm" className="me-1"/> : null}
+                  Submit Comment
+                </CButton>
+                {/* Add Comment Status Messages */} 
+                {addCommentSuccess && <CAlert color="success" className="d-inline-block p-1 ms-2 mb-0">Comment added!</CAlert>}
+                {addCommentError && <CAlert color="danger" className="d-inline-block p-1 ms-2 mb-0">Error: {addCommentError}</CAlert>}
+              </div>
+            </div>
+          )}
 
           {/* Status Messages for State Update */}
           {isUpdatingState && <CSpinner size="sm" className="me-2"/>}
