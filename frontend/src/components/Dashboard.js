@@ -193,6 +193,31 @@ const Dashboard = () => {
          finalJql = `${defectType} AND labels = RCCL_TRIAGE_PENDING ORDER BY updated DESC`;
       } else if (activeButtonFilter === 'waiting') {
          finalJql = `${defectType} AND labels = RCCL_TRIAGE_NEED_MORE_INFO ORDER BY updated DESC`;
+      } else if (activeButtonFilter === 'nri') {
+        // For 'nri', query specifically for the RCCL_TRIAGE_NRI label
+        // It will respect date and assignee filters, but not a specific status filter from this block
+        let dateFilterJql = '';
+        if (selectedDateFilter === 'week') {
+          dateFilterJql = ' AND updated >= -7d'; 
+        } else if (selectedDateFilter === 'month') {
+          dateFilterJql = ' AND updated >= -30d';
+        } else if (selectedDateFilter === 'range' && startDate && endDate) {
+          dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
+        } else if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
+           console.log("Range selected for NRI ticket list, waiting for both dates.");
+           setLoading(false); 
+           return;
+        }
+
+        let assigneeFilterJql = '';
+        if (activeAssigneeFilter === 'avinash') {
+          assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
+        } else if (activeAssigneeFilter === 'marzieh') {
+          assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
+        } else if (activeAssigneeFilter === 'me') {
+          assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
+        }
+        finalJql = `${defectType} AND labels = RCCL_TRIAGE_NRI${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
       } else {
         // Logic for 'ongoing', 'done', and 'rejected' filters
         // Base set of labels for general view, can be overridden by specific filters like 'rejected' or 'ongoing'
@@ -658,6 +683,13 @@ const Dashboard = () => {
                 onClick={() => handleMainFilterClick('rejected')}
               >
                 Rejected
+              </CButton>
+              <CButton 
+                color="dark" // Or another suitable color
+                variant={activeButtonFilter === 'nri' ? undefined : 'outline'}
+                onClick={() => handleMainFilterClick('nri')}
+              >
+                Not RCCL Issue
               </CButton>
             </CButtonGroup>
           </div>
