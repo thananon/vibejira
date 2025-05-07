@@ -26,7 +26,7 @@ export const getStateFromLabels = (labels = []) => {
 export const getStatusColor = (statusName = '') => {
   const upperCaseStatus = statusName.toUpperCase();
   if (upperCaseStatus === 'REJECTED') return 'danger';
-  if (upperCaseStatus === 'OPENED') return 'warning';
+  if (upperCaseStatus === 'OPENED') return 'danger';
   if (upperCaseStatus === 'ASSESSED') return 'warning';
   if (upperCaseStatus === 'ANALYZED') return 'success';
   if (upperCaseStatus === 'IMPLEMENTED' || upperCaseStatus === 'CLOSED') return 'primary';
