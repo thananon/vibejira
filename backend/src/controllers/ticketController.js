@@ -55,7 +55,7 @@ exports.getDashboardSummary = asyncHandler(async (req, res) => {
     
     const specificRejectedLabelForCard = `labels = RCCL_TRIAGE_REJECTED`;
     const rejectedStatusForCard = `status = Rejected`;
-    const rejectedJql = `${defectTypeForCards} AND ${specificRejectedLabelForCard} AND ${rejectedStatusForCard}${assigneeFilterJql}${dateFilterJql}`;
+    const rejectedJql = `${defectTypeForCards} AND ((${specificRejectedLabelForCard}) OR (${generalRcclTriageLabels} AND ${rejectedStatusForCard}))${assigneeFilterJql}${dateFilterJql}`;
 
     // Execute all queries in parallel using Promise.all
     const [
