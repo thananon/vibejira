@@ -3,8 +3,9 @@ Frontend:
 - CoreUI
 
 Backend:
+- Express.js
 - JIRA REST API
 - NodeJS
 
 Database:
-- Prisma
+None (Direct JIRA API usage)
