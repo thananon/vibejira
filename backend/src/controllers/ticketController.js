@@ -186,7 +186,7 @@ exports.getHistory = asyncHandler(async (req, res) => {
 // New function to update ticket state based on labels
 exports.updateTicketState = asyncHandler(async (req, res) => {
   const { issueKey } = req.params;
-  const { targetState } // Expected: 'pending', 'completed', 'moreInfo', 'rejected'
+  const { targetState } // Expected: 'pending', 'completed', 'moreInfo', 'rejected', 'nri'
     = req.body;
 
   if (!targetState) {
@@ -197,7 +197,8 @@ exports.updateTicketState = asyncHandler(async (req, res) => {
     'RCCL_TRIAGE_PENDING',
     'RCCL_TRIAGE_COMPLETED',
     'RCCL_TRIAGE_NEED_MORE_INFO',
-    'RCCL_TRIAGE_REJECTED'
+    'RCCL_TRIAGE_REJECTED',
+    'RCCL_TRIAGE_NRI' // Add NRI to the list of labels to remove for any state change
   ];
 
   let labelToAdd = '';
@@ -214,6 +215,9 @@ exports.updateTicketState = asyncHandler(async (req, res) => {
     case 'rejected': // Added for potential future use
        labelToAdd = 'RCCL_TRIAGE_REJECTED';
        break;
+    case 'nri': // Handle the new 'nri' state
+      labelToAdd = 'RCCL_TRIAGE_NRI';
+      break;
     default:
       return res.status(400).json({ message: 'Invalid target state.' });
   }
