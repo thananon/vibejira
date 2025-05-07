@@ -14,9 +14,11 @@ exports.getDashboardSummary = asyncHandler(async (req, res) => {
     const { activeButtonFilter, selectedDateFilter, startDate, endDate, activeAssigneeFilter } = req.query;
 
     // --- Base JQL Construction (Common filters) --- 
-    const projectAndType = `project = SWDEV AND issuetype = Defect`;
-    const triageAssignment = `"Triage Assignment" = "[1637333]"`;
-    const baseLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`; // Assuming this is the relevant universe for most cards
+    const defectTypeForCards = `issuetype = Defect`;
+    
+    // Base labels for cards that show a mix of RCCL_TRIAGE states.
+    // Adjust this list if NRI or other labels should be part of certain summary counts.
+    const generalRcclTriageLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`;
 
     let dateFilterJql = '';
     if (selectedDateFilter === 'week') {
@@ -36,19 +38,24 @@ exports.getDashboardSummary = asyncHandler(async (req, res) => {
       assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
     }
 
-    // Base JQL combining project, assignment, labels, date, and assignee filters
-    // Note: Triage Pending doesn't use all these base filters
-    const baseFilterJql = `${projectAndType} AND ${triageAssignment} AND ${baseLabels}${assigneeFilterJql}${dateFilterJql}`;
-    
     // --- Calculate Counts --- 
+    // const defectTypeForCards = `issuetype = Defect`; // Already defined above
 
-    // Define JQL queries
-    const triagePendingJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_PENDING`;
-    const inProgressJql = `${baseFilterJql} AND status in (Opened, Assessed, Analyzed)`;
-    const activeP1Jql = `${baseFilterJql} AND priority = "P1 (Gating)" AND status in (Opened, Assessed, Analyzed)`;
-    const completedJql = `${baseFilterJql} AND status in (Implemented, Closed)`;
-    const rejectedJql = `${baseFilterJql} AND status = Rejected`;
-    const waitingForInfoJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_NEED_MORE_INFO`;
+    // Define JQL queries, now independent of project and triage assignment field
+    // Triage Pending card: Generally won't use the global date/assignee filters from the top bar for its specific count.
+    const triagePendingJql = `${defectTypeForCards} AND labels = RCCL_TRIAGE_PENDING`;
+    
+    // Waiting for Info card: Similar to Triage Pending, usually specific to its label.
+    const waitingForInfoJql = `${defectTypeForCards} AND labels = RCCL_TRIAGE_NEED_MORE_INFO`;
+
+    // For In Progress, Active P1, Completed - these will use the global date/assignee filters
+    const inProgressJql = `${defectTypeForCards} AND ${generalRcclTriageLabels} AND status in (Opened, Assessed, Analyzed)${assigneeFilterJql}${dateFilterJql}`;
+    const activeP1Jql = `${defectTypeForCards} AND ${generalRcclTriageLabels} AND priority = "P1 (Gating)" AND status in (Opened, Assessed, Analyzed)${assigneeFilterJql}${dateFilterJql}`;
+    const completedJql = `${defectTypeForCards} AND ${generalRcclTriageLabels} AND status in (Implemented, Closed)${assigneeFilterJql}${dateFilterJql}`;
+    
+    const specificRejectedLabelForCard = `labels = RCCL_TRIAGE_REJECTED`;
+    const rejectedStatusForCard = `status = Rejected`;
+    const rejectedJql = `${defectTypeForCards} AND ${specificRejectedLabelForCard} AND ${rejectedStatusForCard}${assigneeFilterJql}${dateFilterJql}`;
 
     // Execute all queries in parallel using Promise.all
     const [
