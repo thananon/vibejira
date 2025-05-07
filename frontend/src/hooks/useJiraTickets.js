@@ -36,6 +36,25 @@ export const useJiraTickets = (filters) => {
         else if (activeAssigneeFilter === 'marzieh') assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
         else if (activeAssigneeFilter === 'me') assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"';
         finalJql = `${defectType} AND labels = RCCL_TRIAGE_NRI${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
+      } else if (activeButtonFilter === 'rejected') {
+        const specificRejectedLabel = `labels = RCCL_TRIAGE_REJECTED`;
+        const generalRcclTriageLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`;
+        const rejectedStatus = `status = Rejected`;
+
+        let dateFilterJql = '';
+        if (selectedDateFilter === 'week') dateFilterJql = ' AND updated >= -7d';
+        else if (selectedDateFilter === 'month') dateFilterJql = ' AND updated >= -30d';
+        else if (selectedDateFilter === 'range' && startDate && endDate) dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
+        else if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
+          console.log("Range selected for rejected ticket list, waiting for both dates.");
+          setLoading(false); return;
+        }
+        let assigneeFilterJql = '';
+        if (activeAssigneeFilter === 'avinash') assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
+        else if (activeAssigneeFilter === 'marzieh') assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
+        else if (activeAssigneeFilter === 'me') assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"';
+        
+        finalJql = `${defectType} AND ((${specificRejectedLabel}) OR (${generalRcclTriageLabels} AND ${rejectedStatus}))${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
       } else {
         let currentLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED, RCCL_TRIAGE_NRI)`;
         let statusFilterJql = '';
@@ -44,8 +63,6 @@ export const useJiraTickets = (filters) => {
           currentLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`;
         } else if (activeButtonFilter === 'done') {
           statusFilterJql = ' AND status in (Implemented, Closed)';
-        } else if (activeButtonFilter === 'rejected') {
-          currentLabels = `labels = RCCL_TRIAGE_REJECTED`;
         }
         let dateFilterJql = '';
         if (selectedDateFilter === 'week') dateFilterJql = ' AND updated >= -7d';
