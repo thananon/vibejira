@@ -46,7 +46,6 @@ export const useJiraTickets = (filters) => {
           statusFilterJql = ' AND status in (Implemented, Closed)';
         } else if (activeButtonFilter === 'rejected') {
           currentLabels = `labels = RCCL_TRIAGE_REJECTED`;
-          statusFilterJql = ' AND status = Rejected';
         }
         let dateFilterJql = '';
         if (selectedDateFilter === 'week') dateFilterJql = ' AND updated >= -7d';
