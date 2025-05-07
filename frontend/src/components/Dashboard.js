@@ -330,6 +330,9 @@ const Dashboard = () => {
 
   // --- Helper Function for State --- 
   const getStateFromLabels = useCallback((labels = []) => {
+    if (labels.includes('RCCL_TRIAGE_NRI')) {
+      return { text: 'NRI', color: 'danger' };
+    }
     if (labels.includes('RCCL_TRIAGE_PENDING')) {
       return { text: 'Need Triage', color: 'warning' };
     }
@@ -685,7 +688,7 @@ const Dashboard = () => {
                 Rejected
               </CButton>
               <CButton 
-                color="dark" // Or another suitable color
+                color="danger"
                 variant={activeButtonFilter === 'nri' ? undefined : 'outline'}
                 onClick={() => handleMainFilterClick('nri')}
               >
