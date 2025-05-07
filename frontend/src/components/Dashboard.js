@@ -182,27 +182,32 @@ const Dashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      // Base JQL parts
-      const projectAndType = `project = SWDEV AND issuetype = Defect`;
-      const triageAssignment = `"Triage Assignment" = "[1637333]"`;
+      // Base JQL parts removed
+      // const projectAndType = `project = SWDEV AND issuetype = Defect`;
+      // const triageAssignment = `"Triage Assignment" = "[1637333]"`;
+      const defectType = `issuetype = Defect`; // Retain issuetype = Defect
 
       let finalJql = '';
 
       if (activeButtonFilter === 'triagePending') {
-         finalJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_PENDING ORDER BY updated DESC`;
+         finalJql = `${defectType} AND labels = RCCL_TRIAGE_PENDING ORDER BY updated DESC`;
       } else if (activeButtonFilter === 'waiting') {
-         // Special JQL for Waiting - Ignores Status, Assignee, Date
-         finalJql = `${projectAndType} AND ${triageAssignment} AND labels = RCCL_TRIAGE_NEED_MORE_INFO ORDER BY updated DESC`;
+         finalJql = `${defectType} AND labels = RCCL_TRIAGE_NEED_MORE_INFO ORDER BY updated DESC`;
       } else {
-        // Logic for 'ongoing', 'done', and 'rejected' filters (which include other filters)
-        const labels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`; 
+        // Logic for 'ongoing', 'done', and 'rejected' filters
+        // Base set of labels for general view, can be overridden by specific filters like 'rejected' or 'ongoing'
+        let currentLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED, RCCL_TRIAGE_NRI)`; 
 
         let statusFilterJql = '';
         if (activeButtonFilter === 'ongoing') {
           statusFilterJql = ' AND status in (Opened, Assessed, Analyzed)';
+          // For 'ongoing', explicitly exclude NRI from the default set of labels
+          currentLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`;
         } else if (activeButtonFilter === 'done') {
           statusFilterJql = ' AND status in (Implemented, Closed)'; 
         } else if (activeButtonFilter === 'rejected') {
+          // For rejected, we specifically query for the RCCL_TRIAGE_REJECTED label and JIRA status Rejected
+          currentLabels = `labels = RCCL_TRIAGE_REJECTED`;
           statusFilterJql = ' AND status = Rejected';
         }
 
@@ -228,7 +233,8 @@ const Dashboard = () => {
           assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"'; 
         }
         
-        finalJql = `${projectAndType} AND ${triageAssignment} AND ${labels}${statusFilterJql}${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
+        // Construct final JQL. All filters now start with defectType and currentLabels
+        finalJql = `${defectType} AND ${currentLabels}${statusFilterJql}${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
       }
 
       const encodedJql = encodeURIComponent(finalJql);
@@ -876,6 +882,13 @@ const Dashboard = () => {
               disabled={isUpdatingState}
             >
               <CIcon icon={cilInfo} className="me-1" /> More Info Needed
+            </CButton>
+            <CButton
+              color="danger"
+              onClick={() => handleUpdateTicketState('nri')}
+              disabled={isUpdatingState}
+            >
+              Not RCCL Issue
             </CButton>
             {/* Add Reject button if needed later */}
             {/* <CButton color="danger" onClick={() => handleUpdateTicketState('rejected')} disabled={isUpdatingState}><CIcon icon={cilBan} className="me-1" /> Reject</CButton> */}
