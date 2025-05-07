@@ -15,6 +15,7 @@ import {
   cilWarning,
   cilCheckCircle,
   cilInfo,
+  cilBan,
 } from '@coreui/icons';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -62,7 +63,18 @@ const TicketDetailPanel = ({
         <CButton color="info" onClick={() => handleUpdateTicketState('moreInfo')} disabled={isUpdatingState}>
           <CIcon icon={cilInfo} className="me-1" /> More Info Needed
         </CButton>
-        <CButton color="danger" onClick={() => handleUpdateTicketState('nri')} disabled={isUpdatingState}>
+        <CButton
+          color="danger"
+          onClick={() => handleUpdateTicketState('rejected')}
+          disabled={isUpdatingState}
+        >
+          <CIcon icon={cilBan} className="me-1" /> Reject
+        </CButton>
+        <CButton
+          color="danger"
+          onClick={() => handleUpdateTicketState('nri')}
+          disabled={isUpdatingState}
+        >
           Not RCCL Issue
         </CButton>
         <CButton
