@@ -1,112 +1,46 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getStateFromLabels, getPriorityCategory } from '../utils'; // Assuming utils.js is in ../
+import { getStateFromLabels, getPriorityCategory } from '../utils';
+// Import mock data and filter helpers
+import { mockTickets, filterTicketsByDate, filterTicketsByAssignee, filterTicketsByButton } from '../mockData';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
+// const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001'; // Not needed for mock
 
 export const useJiraTickets = (filters) => {
   const { selectedDateFilter, startDate, endDate, activeButtonFilter, activeAssigneeFilter } = filters;
 
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [allMockTickets] = useState(mockTickets); // Store the original mock data
+  const [filteredTickets, setFilteredTickets] = useState([]);
+  const [loading, setLoading] = useState(false); // Set to false, data is available immediately
   const [error, setError] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'fields.updated', direction: 'descending' });
 
-  const fetchTickets = useCallback(async () => {
+  const applyFilters = useCallback(() => {
     setLoading(true);
-    setError(null);
-    try {
-      const defectType = `issuetype = Defect`;
-      let finalJql = '';
+    let currentTickets = [...allMockTickets];
 
-      if (activeButtonFilter === 'triagePending') {
-        finalJql = `${defectType} AND labels = RCCL_TRIAGE_PENDING ORDER BY updated DESC`;
-      } else if (activeButtonFilter === 'waiting') {
-        finalJql = `${defectType} AND labels = RCCL_TRIAGE_NEED_MORE_INFO ORDER BY updated DESC`;
-      } else if (activeButtonFilter === 'nri') {
-        let dateFilterJql = '';
-        if (selectedDateFilter === 'week') dateFilterJql = ' AND updated >= -7d';
-        else if (selectedDateFilter === 'month') dateFilterJql = ' AND updated >= -30d';
-        else if (selectedDateFilter === 'range' && startDate && endDate) dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
-        else if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
-          console.log("Range selected for NRI ticket list, waiting for both dates.");
-          setLoading(false); return;
-        }
-        let assigneeFilterJql = '';
-        if (activeAssigneeFilter === 'avinash') assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
-        else if (activeAssigneeFilter === 'marzieh') assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
-        else if (activeAssigneeFilter === 'me') assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"';
-        finalJql = `${defectType} AND labels = RCCL_TRIAGE_NRI${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
-      } else if (activeButtonFilter === 'rejected') {
-        const specificRejectedLabel = `labels = RCCL_TRIAGE_REJECTED`;
-        const generalRcclTriageLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`;
-        const rejectedStatus = `status = Rejected`;
+    // Apply button filter (status/label based)
+    currentTickets = filterTicketsByButton(currentTickets, activeButtonFilter);
+    
+    // Apply date filter
+    currentTickets = filterTicketsByDate(currentTickets, selectedDateFilter, startDate, endDate);
 
-        let dateFilterJql = '';
-        if (selectedDateFilter === 'week') dateFilterJql = ' AND updated >= -7d';
-        else if (selectedDateFilter === 'month') dateFilterJql = ' AND updated >= -30d';
-        else if (selectedDateFilter === 'range' && startDate && endDate) dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
-        else if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
-          console.log("Range selected for rejected ticket list, waiting for both dates.");
-          setLoading(false); return;
-        }
-        let assigneeFilterJql = '';
-        if (activeAssigneeFilter === 'avinash') assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
-        else if (activeAssigneeFilter === 'marzieh') assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
-        else if (activeAssigneeFilter === 'me') assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"';
-        
-        finalJql = `${defectType} AND ((${specificRejectedLabel}) OR (${generalRcclTriageLabels} AND ${rejectedStatus}))${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
-      } else {
-        let currentLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED, RCCL_TRIAGE_NRI)`;
-        let statusFilterJql = '';
-        if (activeButtonFilter === 'ongoing') {
-          statusFilterJql = ' AND status in (Opened, Assessed, Analyzed)';
-          currentLabels = `labels in (RCCL_TRIAGE_COMPLETED, RCCL_TRIAGE_PENDING, RCCL_TRIAGE_NEED_MORE_INFO, RCCL_TRIAGE_REJECTED)`;
-        } else if (activeButtonFilter === 'done') {
-          statusFilterJql = ' AND status in (Implemented, Closed)';
-        }
-        let dateFilterJql = '';
-        if (selectedDateFilter === 'week') dateFilterJql = ' AND updated >= -7d';
-        else if (selectedDateFilter === 'month') dateFilterJql = ' AND updated >= -30d';
-        else if (selectedDateFilter === 'range' && startDate && endDate) dateFilterJql = ` AND updated >= "${startDate}" AND updated <= "${endDate}"`;
-        else if (selectedDateFilter === 'range' && (!startDate || !endDate)) {
-          console.log("Range selected for ticket list, waiting for both dates.");
-          setLoading(false); return;
-        }
-        let assigneeFilterJql = '';
-        if (activeAssigneeFilter === 'avinash') assigneeFilterJql = ' AND assignee = "Potnuru, Avinash"';
-        else if (activeAssigneeFilter === 'marzieh') assigneeFilterJql = ' AND assignee = "Berenjkoub, Marzieh"';
-        else if (activeAssigneeFilter === 'me') assigneeFilterJql = ' AND assignee = "Patinyasakdikul, Arm"';
-        finalJql = `${defectType} AND ${currentLabels}${statusFilterJql}${assigneeFilterJql}${dateFilterJql} ORDER BY updated DESC`;
-      }
+    // Apply assignee filter
+    currentTickets = filterTicketsByAssignee(currentTickets, activeAssigneeFilter);
+    
+    setFilteredTickets(currentTickets);
+    setLoading(false);
+  }, [allMockTickets, activeButtonFilter, selectedDateFilter, startDate, endDate, activeAssigneeFilter]);
 
-      const encodedJql = encodeURIComponent(finalJql);
-      const url = `${API_BASE_URL}/api/tickets?jql=${encodedJql}&maxResults=100`;
-      console.log(`Fetching tickets with JQL: ${finalJql}`);
-      console.log(`Fetching tickets from URL: ${url}`);
-      const response = await fetch(url);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Failed to fetch tickets'}`);
-      }
-      const data = await response.json();
-      if (data && Array.isArray(data.issues)) {
-        setTickets(data.issues);
-      } else {
-        console.error('Unexpected API response structure:', data);
-        throw new Error('Received unexpected data structure from API.');
-      }
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setError(err.message);
-      setTickets([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedDateFilter, startDate, endDate, activeButtonFilter, activeAssigneeFilter]);
+  // This function is called by Dashboard to refresh tickets. Now it just re-applies filters.
+  const fetchTickets = useCallback(() => {
+    // console.log('Mock fetchTickets called, re-applying filters.');
+    applyFilters();
+  }, [applyFilters]);
 
   useEffect(() => {
-    fetchTickets();
-  }, [fetchTickets]);
+    // console.log('Filters changed, applying...', filters);
+    applyFilters();
+  }, [applyFilters]); // applyFilters has all filter dependencies
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -143,19 +77,19 @@ export const useJiraTickets = (filters) => {
       });
     }
     return sortedItems;
-  }, []); // Removed getStateFromLabels from dependency array (imported functions are stable)
+  }, []);
 
-  const p1Tickets = useMemo(() => sortData(tickets.filter(ticket => getPriorityCategory(ticket) === 'P1'), sortConfig), [tickets, sortConfig, sortData]); // Removed getPriorityCategory
-  const p2Tickets = useMemo(() => sortData(tickets.filter(ticket => getPriorityCategory(ticket) === 'P2'), sortConfig), [tickets, sortConfig, sortData]); // Removed getPriorityCategory
-  const otherTickets = useMemo(() => sortData(tickets.filter(ticket => getPriorityCategory(ticket) === 'Other'), sortConfig), [tickets, sortConfig, sortData]); // Removed getPriorityCategory
+  const p1Tickets = useMemo(() => sortData(filteredTickets.filter(ticket => getPriorityCategory(ticket) === 'P1'), sortConfig), [filteredTickets, sortConfig, sortData]);
+  const p2Tickets = useMemo(() => sortData(filteredTickets.filter(ticket => getPriorityCategory(ticket) === 'P2'), sortConfig), [filteredTickets, sortConfig, sortData]);
+  const otherTickets = useMemo(() => sortData(filteredTickets.filter(ticket => getPriorityCategory(ticket) === 'Other'), sortConfig), [filteredTickets, sortConfig, sortData]);
 
   return {
-    tickets,
+    tickets: filteredTickets, // Provide filtered tickets
     loading,
     error,
     sortConfig,
     requestSort,
-    fetchTickets, // Expose fetchTickets for manual refresh if needed by other hooks/components
+    fetchTickets, 
     p1Tickets,
     p2Tickets,
     otherTickets,

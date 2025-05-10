@@ -52,9 +52,9 @@ const FilterBar = ({
           <span className="me-2">Filter by Assignee:</span>
           <CButtonGroup role="group" aria-label="Assignee Filter Buttons">
             <CButton color="secondary" variant={activeAssigneeFilter === null ? undefined : 'outline'} onClick={() => handleAssigneeFilterClick(null)}>All Assignees</CButton>
-            <CButton color="secondary" variant={activeAssigneeFilter === 'avinash' ? undefined : 'outline'} onClick={() => handleAssigneeFilterClick('avinash')}>Avinash</CButton>
-            <CButton color="secondary" variant={activeAssigneeFilter === 'marzieh' ? undefined : 'outline'} onClick={() => handleAssigneeFilterClick('marzieh')}>Marzieh</CButton>
-            <CButton color="secondary" variant={activeAssigneeFilter === 'me' ? undefined : 'outline'} onClick={() => handleAssigneeFilterClick('me')}>Me</CButton>
+            <CButton color="secondary" variant={activeAssigneeFilter === 'me' ? undefined : 'outline'} onClick={() => handleAssigneeFilterClick('me')}>Person 1</CButton>
+            <CButton color="secondary" variant={activeAssigneeFilter === 'avinash' ? undefined : 'outline'} onClick={() => handleAssigneeFilterClick('avinash')}>Person 2</CButton>
+            <CButton color="secondary" variant={activeAssigneeFilter === 'marzieh' ? undefined : 'outline'} onClick={() => handleAssigneeFilterClick('marzieh')}>Person 3</CButton>
           </CButtonGroup>
         </div>
       )}
