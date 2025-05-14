@@ -250,6 +250,41 @@ exports.updateTicketState = asyncHandler(async (req, res) => {
      // Log the error on the server
      console.error(`Failed to update state for issue ${issueKey} to ${targetState}:`, error);
      // Send a generic error response to the client
-     res.status(500).json({ message: `Failed to update ticket state: ${error.message}` });
+     res.status(error.response?.status || 500).json({ 
+       message: `Failed to update ticket state: ${error.message}`,
+       jiraError: error.response?.data?.errorMessages || error.response?.data?.errors
+     });
+  }
+});
+
+// Controller function to update a generic field on a ticket
+exports.updateTicketField = asyncHandler(async (req, res) => {
+  const { issueKey } = req.params;
+  const { fieldId, value } = req.body;
+
+  if (!fieldId) {
+    return res.status(400).json({ message: 'fieldId is required in the request body.' });
+  }
+  // Value can be an empty string, so we don't check for !value strictly
+  if (value === undefined) { // Check if value is explicitly not provided
+    return res.status(400).json({ message: 'value is required in the request body for the field.' });
+  }
+
+  try {
+    const updatePayload = {
+      fields: {
+        [fieldId]: value,
+      },
+    };
+
+    await jiraService.updateIssue(issueKey, updatePayload);
+    res.status(204).send(); // Successfully updated, no content to return
+
+  } catch (error) {
+    console.error(`Error updating field ${fieldId} for ticket ${issueKey}:`, error.response?.data || error.message);
+    res.status(error.response?.status || 500).json({
+      message: `Failed to update field ${fieldId} for ticket ${issueKey}: ${error.message}`,
+      jiraError: error.response?.data?.errorMessages || error.response?.data?.errors
+    });
   }
 }); 

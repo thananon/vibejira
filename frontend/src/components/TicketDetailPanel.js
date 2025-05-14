@@ -16,6 +16,7 @@ import {
   cilCheckCircle,
   cilInfo,
   cilBan,
+  cilPencil,
 } from '@coreui/icons';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -38,8 +39,26 @@ const TicketDetailPanel = ({
   handleAddComment,
   jiraConfigUrl,
   selectedTicketKey,
+  showTechEvalInput,
+  setShowTechEvalInput,
+  techEvalContent,
+  setTechEvalContent,
+  isUpdatingTechEval,
+  updateTechEvalError,
+  updateTechEvalSuccess,
+  handleUpdateTechEvaluation,
   // fetchComments // Not passed for now, assuming parent (useSidebar) handles re-fetching needed comments
 }) => {
+
+  const technicalEvaluationFieldId = 'customfield_16104';
+
+  const handleToggleTechEvalInput = () => {
+    if (!showTechEvalInput) {
+      // Populate with existing value when opening
+      setTechEvalContent(selectedTicketData?.fields?.[technicalEvaluationFieldId] || '');
+    }
+    setShowTechEvalInput(!showTechEvalInput);
+  };
 
   return (
     <COffcanvasBody>
@@ -53,6 +72,9 @@ const TicketDetailPanel = ({
       <div className="mb-3 d-flex flex-wrap gap-2">
         <CButton color="primary" className="me-2" onClick={() => setShowCommentInput(!showCommentInput)}>
           <CIcon icon={cilCommentBubble} className="me-1"/> Add Comment
+        </CButton>
+        <CButton color="secondary" className="me-2" onClick={handleToggleTechEvalInput}>
+          <CIcon icon={cilPencil} className="me-1"/> Technical Evaluation
         </CButton>
         <CButton color="warning" onClick={() => handleUpdateTicketState('pending')} disabled={isUpdatingState}>
           <CIcon icon={cilWarning} className="me-1" /> Send to Triage
@@ -109,6 +131,33 @@ const TicketDetailPanel = ({
             </CButton>
             {addCommentSuccess && <CAlert color="success" className="d-inline-block p-1 ms-2 mb-0">Comment added!</CAlert>}
             {addCommentError && <CAlert color="danger" className="d-inline-block p-1 ms-2 mb-0">Error: {addCommentError}</CAlert>}
+          </div>
+        </div>
+      )}
+
+      {/* Conditional Technical Evaluation Input Area */}
+      {showTechEvalInput && (
+        <div className="mt-3 border-top pt-3">
+          <h5>Technical Evaluation</h5>
+          <CFormTextarea
+            rows={5}
+            placeholder="Enter technical evaluation..."
+            value={techEvalContent}
+            onChange={(e) => setTechEvalContent(e.target.value)}
+            disabled={isUpdatingTechEval}
+          />
+          <div className="mt-2 d-flex align-items-center">
+            <CButton
+              color="success"
+              size="sm"
+              onClick={() => handleUpdateTechEvaluation(techEvalContent)}
+              disabled={isUpdatingTechEval || typeof techEvalContent !== 'string' || !techEvalContent.trim()}
+            >
+              {isUpdatingTechEval ? <CSpinner size="sm" className="me-1"/> : null}
+              Submit Tech Eval
+            </CButton>
+            {updateTechEvalSuccess && <CAlert color="success" className="d-inline-block p-1 ms-2 mb-0">Evaluation updated!</CAlert>}
+            {updateTechEvalError && <CAlert color="danger" className="d-inline-block p-1 ms-2 mb-0">Error: {updateTechEvalError}</CAlert>}
           </div>
         </div>
       )}

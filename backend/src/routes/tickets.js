@@ -24,4 +24,7 @@ router.get('/:issueKey/history', ticketController.getHistory);
 // Route to update the state label for a specific ticket
 router.put('/:issueKey/state', ticketController.updateTicketState);
 
+// Route to update a generic field on a specific ticket
+router.put('/:issueKey/field', ticketController.updateTicketField);
+
 module.exports = router; 

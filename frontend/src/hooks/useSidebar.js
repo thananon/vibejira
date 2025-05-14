@@ -20,6 +20,13 @@ export const useSidebar = (jiraConfigUrl, onTicketUpdate) => { // onTicketUpdate
   const [addCommentError, setAddCommentError] = useState(null);
   const [addCommentSuccess, setAddCommentSuccess] = useState(false);
 
+  // State for Technical Evaluation
+  const [showTechEvalInput, setShowTechEvalInput] = useState(false);
+  const [techEvalContent, setTechEvalContent] = useState('');
+  const [isUpdatingTechEval, setIsUpdatingTechEval] = useState(false);
+  const [updateTechEvalError, setUpdateTechEvalError] = useState(null);
+  const [updateTechEvalSuccess, setUpdateTechEvalSuccess] = useState(false);
+
   const fetchComments = useCallback(async (issueKey) => {
     if (!issueKey) return;
     setCommentLoading(true);
@@ -59,6 +66,12 @@ export const useSidebar = (jiraConfigUrl, onTicketUpdate) => { // onTicketUpdate
     setAddCommentError(null);
     setShowCommentInput(false);
     setNewComment('');
+    // Reset Technical Evaluation states
+    setShowTechEvalInput(false);
+    setTechEvalContent('');
+    setUpdateTechEvalError(null);
+    setUpdateTechEvalSuccess(false);
+    setIsUpdatingTechEval(false); // Ensure loading state is also reset
   }, [fetchComments]);
 
   const handleUpdateTicketState = useCallback(async (newState) => {
@@ -121,6 +134,49 @@ export const useSidebar = (jiraConfigUrl, onTicketUpdate) => { // onTicketUpdate
     }
   }, [selectedTicketKey, newComment, fetchComments /*, onTicketUpdate */]);
 
+  const handleUpdateTechEvaluation = useCallback(async (content) => {
+    if (!selectedTicketKey) return;
+    setIsUpdatingTechEval(true);
+    setUpdateTechEvalError(null);
+    setUpdateTechEvalSuccess(false);
+    try {
+      const url = `${API_BASE_URL}/api/tickets/${selectedTicketKey}/field`;
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fieldId: 'customfield_16104', value: content }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Failed to update technical evaluation'}`);
+      }
+      setUpdateTechEvalSuccess(true);
+      // Optionally, refresh main ticket list or selected ticket data if the backend returns the updated ticket
+      // if (onTicketUpdate) onTicketUpdate(); 
+      // For now, just re-fetch the selected ticket data to get the updated field
+      if (selectedTicketData) {
+          const updatedTicketData = {
+              ...selectedTicketData,
+              fields: {
+                  ...selectedTicketData.fields,
+                  "customfield_16104": content,
+              }
+          };
+          setSelectedTicketData(updatedTicketData);
+      }
+      setTimeout(() => {
+        setUpdateTechEvalSuccess(false);
+        // setShowTechEvalInput(false); // Optionally hide input on success after a delay
+      }, 3000);
+    } catch (err) {
+      console.error(`Error updating technical evaluation:`, err);
+      setUpdateTechEvalError(err.message);
+      setTimeout(() => setUpdateTechEvalError(null), 5000);
+    } finally {
+      setIsUpdatingTechEval(false);
+    }
+  }, [selectedTicketKey, selectedTicketData /*, onTicketUpdate */]);
+
   const closeSidebar = useCallback(() => {
     setSidebarVisible(false);
   }, []);
@@ -147,6 +203,15 @@ export const useSidebar = (jiraConfigUrl, onTicketUpdate) => { // onTicketUpdate
     handleUpdateTicketState,
     handleAddComment,
     fetchComments, // Expose if needed by panel itself for refresh
-    closeSidebar
+    closeSidebar,
+    // Expose Technical Evaluation states and handler
+    showTechEvalInput,
+    setShowTechEvalInput,
+    techEvalContent,
+    setTechEvalContent,
+    isUpdatingTechEval,
+    updateTechEvalError,
+    updateTechEvalSuccess,
+    handleUpdateTechEvaluation,
   };
 }; 
