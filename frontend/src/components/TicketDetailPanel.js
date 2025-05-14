@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   COffcanvasBody,
   CButton,
@@ -39,8 +39,6 @@ const TicketDetailPanel = ({
   handleAddComment,
   jiraConfigUrl,
   selectedTicketKey,
-  showTechEvalInput,
-  setShowTechEvalInput,
   techEvalContent,
   setTechEvalContent,
   isUpdatingTechEval,
@@ -51,13 +49,38 @@ const TicketDetailPanel = ({
 }) => {
 
   const technicalEvaluationFieldId = 'customfield_16104';
+  const [isEditingTechEval, setIsEditingTechEval] = useState(false);
+  const [originalTechEvalContentForCancel, setOriginalTechEvalContentForCancel] = useState('');
 
-  const handleToggleTechEvalInput = () => {
-    if (!showTechEvalInput) {
-      // Populate with existing value when opening
-      setTechEvalContent(selectedTicketData?.fields?.[technicalEvaluationFieldId] || '');
+  // Effect to initialize/reset tech eval content and edit state on ticket change
+  useEffect(() => {
+    const currentContent = selectedTicketData?.fields?.[technicalEvaluationFieldId] || '';
+    setTechEvalContent(currentContent); // Update content in parent via prop
+    setOriginalTechEvalContentForCancel(currentContent); // Store for cancel
+    setIsEditingTechEval(false); // Ensure not in edit mode
+  }, [selectedTicketData, technicalEvaluationFieldId, setTechEvalContent]);
+
+  // Effect to exit edit mode on successful save
+  useEffect(() => {
+    if (updateTechEvalSuccess && isEditingTechEval) {
+      setIsEditingTechEval(false);
+      // The success message is handled by existing props and CAlert
     }
-    setShowTechEvalInput(!showTechEvalInput);
+  }, [updateTechEvalSuccess, isEditingTechEval]);
+
+  const handleEditTechEval = () => {
+    setOriginalTechEvalContentForCancel(techEvalContent); // Save current content before editing
+    setIsEditingTechEval(true);
+  };
+
+  const handleSaveTechEval = () => {
+    handleUpdateTechEvaluation(techEvalContent); // Call prop to save
+    // useEffect will handle setIsEditingTechEval(false) on success
+  };
+
+  const handleCancelEditTechEval = () => {
+    setTechEvalContent(originalTechEvalContentForCancel); // Revert to original content via prop
+    setIsEditingTechEval(false);
   };
 
   return (
@@ -72,9 +95,6 @@ const TicketDetailPanel = ({
       <div className="mb-3 d-flex flex-wrap gap-2">
         <CButton color="primary" className="me-2" onClick={() => setShowCommentInput(!showCommentInput)}>
           <CIcon icon={cilCommentBubble} className="me-1"/> Add Comment
-        </CButton>
-        <CButton color="secondary" className="me-2" onClick={handleToggleTechEvalInput}>
-          <CIcon icon={cilPencil} className="me-1"/> Technical Evaluation
         </CButton>
         <CButton color="warning" onClick={() => handleUpdateTicketState('pending')} disabled={isUpdatingState}>
           <CIcon icon={cilWarning} className="me-1" /> Send to Triage
@@ -114,6 +134,52 @@ const TicketDetailPanel = ({
         </CButton>
       </div>
 
+      {/* New Always-Visible Technical Evaluation Section */}
+      <div className="mb-3 border-top pt-3">
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <h5 className="mb-0">Technical Evaluation</h5>
+          {!isEditingTechEval ? (
+            <CButton color="secondary" size="sm" onClick={handleEditTechEval}>
+              <CIcon icon={cilPencil} className="me-1"/> Edit
+            </CButton>
+          ) : (
+            <div className="d-flex gap-2 align-items-center">
+              <CButton 
+                color="success" 
+                size="sm" 
+                onClick={handleSaveTechEval} 
+                disabled={isUpdatingTechEval || typeof techEvalContent !== 'string' || techEvalContent === originalTechEvalContentForCancel}
+              >
+                {isUpdatingTechEval ? <CSpinner size="sm" className="me-1"/> : null}
+                Save
+              </CButton>
+              <CButton color="light" size="sm" onClick={handleCancelEditTechEval} disabled={isUpdatingTechEval}>
+                Cancel
+              </CButton>
+            </div>
+          )}
+        </div>
+        <CFormTextarea
+          rows={5}
+          placeholder="Enter technical evaluation..."
+          value={techEvalContent}
+          onChange={(e) => setTechEvalContent(e.target.value)}
+          disabled={!isEditingTechEval || isUpdatingTechEval}
+        />
+        {/* Displaying error/success messages related to Tech Eval Update */}
+        {isUpdatingTechEval && !isEditingTechEval && <CSpinner size="sm" className="me-2"/> /* Show spinner if updating but not in edit mode (e.g. initial load) - might be rare here */}
+        {updateTechEvalSuccess && !isEditingTechEval && (
+          <CAlert color="success" className="d-inline-block p-1 mt-2 mb-0">
+            Evaluation updated!
+          </CAlert>
+        )}
+        {updateTechEvalError && (
+            <CAlert color="danger" className="d-inline-block p-1 mt-2 mb-0">
+                Error: {updateTechEvalError}
+            </CAlert>
+        )}
+      </div>
+
       {/* Conditional Comment Input Area */}
       {showCommentInput && (
         <div className="mt-3 border-top pt-3">
@@ -134,38 +200,6 @@ const TicketDetailPanel = ({
           </div>
         </div>
       )}
-
-      {/* Conditional Technical Evaluation Input Area */}
-      {showTechEvalInput && (
-        <div className="mt-3 border-top pt-3">
-          <h5>Technical Evaluation</h5>
-          <CFormTextarea
-            rows={5}
-            placeholder="Enter technical evaluation..."
-            value={techEvalContent}
-            onChange={(e) => setTechEvalContent(e.target.value)}
-            disabled={isUpdatingTechEval}
-          />
-          <div className="mt-2 d-flex align-items-center">
-            <CButton
-              color="success"
-              size="sm"
-              onClick={() => handleUpdateTechEvaluation(techEvalContent)}
-              disabled={isUpdatingTechEval || typeof techEvalContent !== 'string' || !techEvalContent.trim()}
-            >
-              {isUpdatingTechEval ? <CSpinner size="sm" className="me-1"/> : null}
-              Submit Tech Eval
-            </CButton>
-            {updateTechEvalSuccess && <CAlert color="success" className="d-inline-block p-1 ms-2 mb-0">Evaluation updated!</CAlert>}
-            {updateTechEvalError && <CAlert color="danger" className="d-inline-block p-1 ms-2 mb-0">Error: {updateTechEvalError}</CAlert>}
-          </div>
-        </div>
-      )}
-
-      {/* Status Messages for State Update */}
-      {isUpdatingState && <CSpinner size="sm" className="me-2"/>}
-      {updateStateSuccess && <CAlert color="success" className="d-inline-block p-2">State updated successfully!</CAlert>}
-      {updateStateError && <CAlert color="danger" className="d-inline-block p-2">Error: {updateStateError}</CAlert>}
 
       <h5 className="mt-4">Comments</h5>
       {commentLoading && (
@@ -200,6 +234,11 @@ const TicketDetailPanel = ({
           )}
         </>
       )}
+
+      {/* Status Messages for State Update */}
+      {isUpdatingState && <CSpinner size="sm" className="me-2"/>}
+      {updateStateSuccess && <CAlert color="success" className="d-inline-block p-2">State updated successfully!</CAlert>}
+      {updateStateError && <CAlert color="danger" className="d-inline-block p-2">Error: {updateStateError}</CAlert>}
     </COffcanvasBody>
   );
 };

@@ -21,7 +21,6 @@ export const useSidebar = (jiraConfigUrl, onTicketUpdate) => { // onTicketUpdate
   const [addCommentSuccess, setAddCommentSuccess] = useState(false);
 
   // State for Technical Evaluation
-  const [showTechEvalInput, setShowTechEvalInput] = useState(false);
   const [techEvalContent, setTechEvalContent] = useState('');
   const [isUpdatingTechEval, setIsUpdatingTechEval] = useState(false);
   const [updateTechEvalError, setUpdateTechEvalError] = useState(null);
@@ -67,7 +66,6 @@ export const useSidebar = (jiraConfigUrl, onTicketUpdate) => { // onTicketUpdate
     setShowCommentInput(false);
     setNewComment('');
     // Reset Technical Evaluation states
-    setShowTechEvalInput(false);
     setTechEvalContent('');
     setUpdateTechEvalError(null);
     setUpdateTechEvalSuccess(false);
@@ -166,7 +164,6 @@ export const useSidebar = (jiraConfigUrl, onTicketUpdate) => { // onTicketUpdate
       }
       setTimeout(() => {
         setUpdateTechEvalSuccess(false);
-        // setShowTechEvalInput(false); // Optionally hide input on success after a delay
       }, 3000);
     } catch (err) {
       console.error(`Error updating technical evaluation:`, err);
@@ -205,8 +202,6 @@ export const useSidebar = (jiraConfigUrl, onTicketUpdate) => { // onTicketUpdate
     fetchComments, // Expose if needed by panel itself for refresh
     closeSidebar,
     // Expose Technical Evaluation states and handler
-    showTechEvalInput,
-    setShowTechEvalInput,
     techEvalContent,
     setTechEvalContent,
     isUpdatingTechEval,
