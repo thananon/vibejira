@@ -34,16 +34,40 @@ const TicketTable = ({
 
   return (
     <div className="mb-4">
-      <h4 onClick={toggleVisibility} style={{ cursor: 'pointer' }} className="d-flex justify-content-between align-items-center">
+      <h4 
+        onClick={toggleVisibility} 
+        style={{ 
+          cursor: 'pointer', 
+          color: '#e1e1e1', 
+          padding: '12px 15px', 
+          borderRadius: '4px',
+          backgroundColor: '#2c2c2c',
+          marginBottom: '15px',
+          transition: 'all 0.2s ease-in-out',
+          boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)'
+        }} 
+        className="d-flex justify-content-between align-items-center"
+      >
         {title} ({tickets.length})
         <CIcon icon={isVisible ? cilChevronBottom : cilChevronTop} />
       </h4>
       <CCollapse visible={isVisible}>
         {tickets.length > 0 ? (
-          <CTable hover responsive bordered small className="mt-2">
-            <CTableHead color="light">
-              <CTableRow>
-                <CTableHeaderCell scope="col" onClick={() => requestSort('key')} style={{ cursor: 'pointer' }}>
+          <CTable 
+            hover 
+            responsive 
+            className="mt-2" 
+            style={{ 
+              backgroundColor: '#2c2c2c', 
+              color: '#e1e1e1',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <CTableHead color="dark">
+              <CTableRow style={{ borderBottom: '2px solid #444' }}>
+                <CTableHeaderCell scope="col" onClick={() => requestSort('key')} style={{ cursor: 'pointer', width:'100px' }}>
                   Key <SortIcon columnKey="key" />
                 </CTableHeaderCell>
                 <CTableHeaderCell scope="col" onClick={() => requestSort('fields.summary')} style={{ cursor: 'pointer' }}>
