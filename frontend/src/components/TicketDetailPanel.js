@@ -19,6 +19,7 @@ import {
   cilPencil,
 } from '@coreui/icons';
 import { formatDistanceToNow } from 'date-fns';
+import { formatJiraComment } from '../utils/jiraCommentFormatter';
 
 const TicketDetailPanel = ({
   selectedTicketData,
@@ -223,9 +224,8 @@ const TicketDetailPanel = ({
                       {comment.created ? formatDistanceToNow(new Date(comment.created), { addSuffix: true }) : ''}
                     </small>
                   </div>
-                  {/* Render comment body as HTML. Assumes Jira provides sanitized HTML. */}
-                  {/* If body is Atlassian Document Format (ADF), a specific renderer would be needed. */}
-                  <div dangerouslySetInnerHTML={{ __html: comment.body || '' }}></div>
+                  {/* Process and render comment body with proper formatting */}
+                  <div className="comment-content" dangerouslySetInnerHTML={{ __html:  formatJiraComment(comment.body) }}></div>
                 </CCardBody>
               </CCard>
             ))
