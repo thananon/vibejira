@@ -1,0 +1,187 @@
+/* Modern Card Styles */
+.summary-card {
+  border-radius: 12px !important;
+  border: none !important;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(5px);
+  display: flex;
+  flex-direction: column;
+  min-width: 100%;
+}
+
+.summary-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  z-index: -1;
+  border-radius: 12px;
+}
+
+.summary-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.summary-card .card-body {
+  padding: 1.5rem !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Card Variants */
+.warning-card {
+  background: linear-gradient(135deg, #ffb648 0%, #ff8a00 100%) !important;
+  color: #fff !important;
+}
+
+.info-card {
+  background: linear-gradient(135deg, #49a7e9 0%, #1e88e5 100%) !important;
+  color: #fff !important;
+}
+
+.danger-card {
+  background: linear-gradient(135deg, #ff5e62 0%, #ff2c55 100%) !important;
+  color: #fff !important;
+}
+
+.info-card-alt {
+  background: linear-gradient(135deg, #17a2b8 0%, #007bff 100%) !important;
+  color: #fff !important;
+}
+
+.success-card {
+  background: linear-gradient(135deg, #3edd6a 0%, #2bb673 100%) !important;
+  color: #fff !important;
+}
+
+.danger-card-alt {
+  background: linear-gradient(135deg, #fc6076 0%, #ff4b2b 100%) !important;
+  color: #fff !important;
+}
+
+/* Card Content Styles */
+.icon-container {
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 60px;
+  height: 60px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  padding: 12px;
+  transition: all 0.5s ease;
+}
+
+.summary-card:hover .icon-container {
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.summary-icon {
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.15));
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.summary-card .card-title {
+  color: rgba(255, 255, 255, 0.95) !important;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+  height: 40px !important;
+}
+
+.summary-card .card-value {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Animations */
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes scale {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+.summary-card:hover .rotate {
+  animation: rotate 3s linear infinite;
+}
+
+.summary-card:hover .pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.summary-card:hover .bounce {
+  animation: bounce 1s ease infinite;
+}
+
+.summary-card:hover .scale {
+  animation: scale 2s ease infinite;
+}
+
+.summary-card:hover .shake {
+  animation: shake 0.8s ease-in-out infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .card-title {
+    font-size: 0.8rem;
+  }
+  .card-value {
+    font-size: 1.8rem;
+  }
+  .icon-container {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+/* Card entrance animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

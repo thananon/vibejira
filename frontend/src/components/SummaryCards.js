@@ -14,6 +14,7 @@ import {
   cilXCircle,
   cilInfo,
 } from '@coreui/icons';
+import './SummaryCards.css'; // Import custom CSS
 
 const SummaryCards = ({ summaryData, summaryLoading, summaryError }) => {
   if (summaryLoading) return <p>Loading summary...</p>;
@@ -22,56 +23,68 @@ const SummaryCards = ({ summaryData, summaryLoading, summaryError }) => {
   return (
     <CRow className="mb-4 text-center">
       <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
-        <CCard textColor="warning">
+        <CCard textColor="warning" className="summary-card warning-card">
           <CCardBody>
-            <CIcon icon={cilWarning} size="xl" className="mb-2" />
-            <div>Triage Pending</div>
-            <div className="fs-2 fw-semibold">{summaryData.triagePending}</div>
+            <div className="icon-container">
+              <CIcon icon={cilWarning} size="xl" className="summary-icon" />
+            </div>
+            <div className="card-title">Triage Pending</div>
+            <div className="card-value">{summaryData.triagePending}</div>
           </CCardBody>
         </CCard>
       </CCol>
       <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
-        <CCard textColor="info">
+        <CCard textColor="info" className="summary-card info-card">
           <CCardBody>
-            <CIcon icon={cilLoopCircular} size="xl" className="mb-2" />
-            <div>In Progress</div>
-            <div className="fs-2 fw-semibold">{summaryData.inProgress}</div>
+            <div className="icon-container">
+              <CIcon icon={cilLoopCircular} size="xl" className="summary-icon rotate" />
+            </div>
+            <div className="card-title">In Progress</div>
+            <div className="card-value">{summaryData.inProgress}</div>
           </CCardBody>
         </CCard>
       </CCol>
       <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
-        <CCard textColor="danger">
+        <CCard textColor="danger" className="summary-card danger-card">
           <CCardBody>
-            <CIcon icon={cilFire} size="xl" className="mb-2" />
-            <div>Active P1</div>
-            <div className="fs-2 fw-semibold">{summaryData.activeP1}</div>
+            <div className="icon-container">
+              <CIcon icon={cilFire} size="xl" className="summary-icon pulse" />
+            </div>
+            <div className="card-title">Active P1</div>
+            <div className="card-value">{summaryData.activeP1}</div>
           </CCardBody>
         </CCard>
       </CCol>
       <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
-        <CCard textColor="info">
+        <CCard textColor="info" className="summary-card info-card-alt">
           <CCardBody>
-            <CIcon icon={cilInfo} size="xl" className="mb-2" />
-            <div>Waiting for Info</div>
-            <div className="fs-2 fw-semibold">{summaryData.waitingForInfo}</div>
+            <div className="icon-container">
+              <CIcon icon={cilInfo} size="xl" className="summary-icon bounce" />
+            </div>
+            <div className="card-title">Waiting for Info</div>
+            <div className="card-value">{summaryData.waitingForInfo}</div>
           </CCardBody>
         </CCard>
       </CCol>
       <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
-        <CCard textColor="success">
+        <CCard textColor="success" className="summary-card success-card">
           <CCardBody>
-            <CIcon icon={cilCheckCircle} size="xl" className="mb-2" />
-            <div>Completed</div>
-            <div className="fs-2 fw-semibold">{summaryData.completedToday}</div>
+            <div className="icon-container">
+              <CIcon icon={cilCheckCircle} size="xl" className="summary-icon scale" />
+            </div>
+            <div className="card-title">Completed</div>
+            <div className="card-value">{summaryData.completedToday}</div>
           </CCardBody>
         </CCard>
       </CCol>
       <CCol sm={6} lg={2} className="mb-3 mb-lg-0">
-        <CCard textColor="danger">
+        <CCard textColor="danger" className="summary-card danger-card-alt">
           <CCardBody>
-            <CIcon icon={cilXCircle} size="xl" className="mb-2" />
-            <div>Rejected</div>
-            <div className="fs-2 fw-semibold">{summaryData.rejected}</div>
+            <div className="icon-container">
+              <CIcon icon={cilXCircle} size="xl" className="summary-icon shake" />
+            </div>
+            <div className="card-title">Rejected</div>
+            <div className="card-value">{summaryData.rejected}</div>
           </CCardBody>
         </CCard>
       </CCol>
@@ -79,4 +92,4 @@ const SummaryCards = ({ summaryData, summaryLoading, summaryError }) => {
   );
 };
 
-export default SummaryCards; 
+export default SummaryCards;
