@@ -1,0 +1,138 @@
+// JIRA Issue Types
+const JIRA_ISSUETYPE_DEFECT = 'issuetype = Defect';
+
+// JIRA Labels
+const JIRA_LABEL_TRIAGE_PENDING = 'RCCL_TRIAGE_PENDING';
+const JIRA_LABEL_TRIAGE_COMPLETED = 'RCCL_TRIAGE_COMPLETED';
+const JIRA_LABEL_TRIAGE_NEED_MORE_INFO = 'RCCL_TRIAGE_NEED_MORE_INFO';
+const JIRA_LABEL_TRIAGE_REJECTED = 'RCCL_TRIAGE_REJECTED';
+const JIRA_LABEL_TRIAGE_NRI = 'RCCL_TRIAGE_NRI';
+
+// JQL Fragments for Labels
+const JQL_LABEL_TRIAGE_PENDING = `labels = ${JIRA_LABEL_TRIAGE_PENDING}`;
+const JQL_LABEL_TRIAGE_NEED_MORE_INFO = `labels = ${JIRA_LABEL_TRIAGE_NEED_MORE_INFO}`;
+const JQL_LABEL_TRIAGE_REJECTED = `labels = ${JIRA_LABEL_TRIAGE_REJECTED}`;
+
+// General JQL for RCCL Triage Labels
+const JQL_GENERAL_RCCL_TRIAGE_LABELS = `labels in (${JIRA_LABEL_TRIAGE_COMPLETED}, ${JIRA_LABEL_TRIAGE_PENDING}, ${JIRA_LABEL_TRIAGE_NEED_MORE_INFO}, ${JIRA_LABEL_TRIAGE_REJECTED})`;
+
+// JIRA Assignees
+const JIRA_ASSIGNEE_AVINASH_NAME = 'Potnuru, Avinash';
+const JIRA_ASSIGNEE_MARZIEH_NAME = 'Berenjkoub, Marzieh';
+const JIRA_ASSIGNEE_ARM_NAME = 'Patinyasakdikul, Arm';
+
+// JQL Fragments for Assignees
+const JQL_ASSIGNEE_AVINASH = `assignee = "${JIRA_ASSIGNEE_AVINASH_NAME}"`;
+const JQL_ASSIGNEE_MARZIEH = `assignee = "${JIRA_ASSIGNEE_MARZIEH_NAME}"`;
+const JQL_ASSIGNEE_ARM = `assignee = "${JIRA_ASSIGNEE_ARM_NAME}"`;
+const JQL_ASSIGNEE_CURRENT_USER = 'assignee = currentUser()';
+
+// JIRA Statuses
+const JIRA_STATUS_OPENED = 'Opened';
+const JIRA_STATUS_ASSESSED = 'Assessed';
+const JIRA_STATUS_ANALYZED = 'Analyzed';
+const JIRA_STATUS_IMPLEMENTED = 'Implemented';
+const JIRA_STATUS_CLOSED = 'Closed';
+const JIRA_STATUS_REJECTED = 'Rejected'; // Used as a status value
+const JIRA_STATUS_DONE = 'Done'; // Used in searchTickets
+
+// JQL Fragments for Statuses
+const JQL_STATUS_IN_PROGRESS = `status in (${JIRA_STATUS_OPENED}, ${JIRA_STATUS_ASSESSED}, ${JIRA_STATUS_ANALYZED})`;
+const JQL_STATUS_COMPLETED = `status in (${JIRA_STATUS_IMPLEMENTED}, ${JIRA_STATUS_CLOSED})`;
+const JQL_STATUS_REJECTED_STATUS_CLAUSE = `status = ${JIRA_STATUS_REJECTED}`; // Renamed to avoid conflict if JQL_STATUS_REJECTED is different
+const JQL_STATUS_UNRESOLVED = 'resolution = Unresolved'; // Common filter
+
+// JIRA Priorities
+const JIRA_PRIORITY_P1_GATING_VALUE = '"P1 (Gating)"'; // Renamed to avoid conflict
+const JIRA_PRIORITY_P1 = 'P1';
+const JIRA_PRIORITY_P2 = 'P2';
+
+// JQL Fragments for Priorities
+const JQL_PRIORITY_P1_GATING = `priority = ${JIRA_PRIORITY_P1_GATING_VALUE}`;
+const JQL_PRIORITY_P1 = `priority = ${JIRA_PRIORITY_P1}`;
+const JQL_PRIORITY_P2 = `priority = ${JIRA_PRIORITY_P2}`;
+const JQL_PRIORITY_NOT_P1_P2 = `priority not in (${JIRA_PRIORITY_P1}, ${JIRA_PRIORITY_P2})`;
+
+// JQL Ordering
+const JQL_ORDER_BY_UPDATED_DESC = 'ORDER BY updated DESC';
+const JQL_ORDER_BY_CREATED_DESC = 'ORDER BY created DESC';
+const JQL_ORDER_BY_RESOLUTIONDATE_DESC = 'ORDER BY resolutiondate DESC';
+
+// Date Filters
+const JQL_UPDATED_LAST_7_DAYS = 'updated >= -7d';
+const JQL_UPDATED_LAST_30_DAYS = 'updated >= -30d';
+
+// Default Fields for Search
+const JIRA_DEFAULT_SEARCH_FIELDS = 'summary,status,issuetype,priority,created,updated,assignee,labels,customfield_16104';
+
+// Target States for updateTicketState function
+const TICKET_STATE_PENDING = 'pending';
+const TICKET_STATE_COMPLETED = 'completed';
+const TICKET_STATE_MORE_INFO = 'moreInfo';
+const TICKET_STATE_REJECTED = 'rejected';
+const TICKET_STATE_NRI = 'nri';
+
+// Array of valid ticket states for validation
+const TICKET_STATES_VALID_ARRAY = [
+  TICKET_STATE_PENDING,
+  TICKET_STATE_COMPLETED,
+  TICKET_STATE_MORE_INFO,
+  TICKET_STATE_REJECTED,
+  TICKET_STATE_NRI,
+];
+
+// Simple JQL Builder function
+function buildJql(conditions) {
+  return conditions.filter(c => c && String(c).trim() !== '').join(' AND ');
+}
+
+module.exports = {
+  JIRA_ISSUETYPE_DEFECT,
+  JIRA_LABEL_TRIAGE_PENDING,
+  JIRA_LABEL_TRIAGE_COMPLETED,
+  JIRA_LABEL_TRIAGE_NEED_MORE_INFO,
+  JIRA_LABEL_TRIAGE_REJECTED,
+  JIRA_LABEL_TRIAGE_NRI,
+  JQL_LABEL_TRIAGE_PENDING,
+  JQL_LABEL_TRIAGE_NEED_MORE_INFO,
+  JQL_LABEL_TRIAGE_REJECTED, // This is `labels = RCCL_TRIAGE_REJECTED`
+  JQL_GENERAL_RCCL_TRIAGE_LABELS,
+  JIRA_ASSIGNEE_AVINASH_NAME,
+  JIRA_ASSIGNEE_MARZIEH_NAME,
+  JIRA_ASSIGNEE_ARM_NAME,
+  JQL_ASSIGNEE_AVINASH,
+  JQL_ASSIGNEE_MARZIEH,
+  JQL_ASSIGNEE_ARM,
+  JQL_ASSIGNEE_CURRENT_USER,
+  JIRA_STATUS_OPENED,
+  JIRA_STATUS_ASSESSED,
+  JIRA_STATUS_ANALYZED,
+  JIRA_STATUS_IMPLEMENTED,
+  JIRA_STATUS_CLOSED,
+  JIRA_STATUS_REJECTED, // This is the status string 'Rejected'
+  JIRA_STATUS_DONE,
+  JQL_STATUS_IN_PROGRESS,
+  JQL_STATUS_COMPLETED,
+  JQL_STATUS_REJECTED: JQL_STATUS_REJECTED_STATUS_CLAUSE, // This is `status = Rejected`
+  JQL_STATUS_UNRESOLVED,
+  JIRA_PRIORITY_P1_GATING_VALUE,
+  JIRA_PRIORITY_P1,
+  JIRA_PRIORITY_P2,
+  JQL_PRIORITY_P1_GATING,
+  JQL_PRIORITY_P1,
+  JQL_PRIORITY_P2,
+  JQL_PRIORITY_NOT_P1_P2,
+  JQL_ORDER_BY_UPDATED_DESC,
+  JQL_ORDER_BY_CREATED_DESC,
+  JQL_ORDER_BY_RESOLUTIONDATE_DESC,
+  JQL_UPDATED_LAST_7_DAYS,
+  JQL_UPDATED_LAST_30_DAYS,
+  JIRA_DEFAULT_SEARCH_FIELDS,
+  TICKET_STATE_PENDING,
+  TICKET_STATE_COMPLETED,
+  TICKET_STATE_MORE_INFO,
+  TICKET_STATE_REJECTED, // This is the state string 'rejected'
+  TICKET_STATE_NRI,
+  TICKET_STATES_VALID_ARRAY,
+  buildJql,
+};

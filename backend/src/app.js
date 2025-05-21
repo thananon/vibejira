@@ -7,11 +7,15 @@ const jiraService = require('./services/jiraService');
 const app = express();
 
 // Basic Middleware
-// Apply CORS middleware - Allow ALL origins (use with caution!)
-app.use(cors()); 
-// app.use(cors({ 
-//   origin: config.frontendOrigin, // Previous configuration
-// }));
+// Apply CORS middleware
+if (config.frontendOrigin) {
+  app.use(cors({ origin: config.frontendOrigin }));
+} else {
+  console.warn('WARNING: FRONTEND_ORIGIN is not defined in environment variables. CORS will allow all origins. This is insecure for production.');
+  // Fallback to allow all origins if not defined, to prevent breaking development if .env is missing
+  // For a production environment, you might want a stricter fallback or to prevent startup.
+  app.use(cors()); 
+}
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -59,7 +63,7 @@ app.listen(config.port, async () => {
       console.warn('Error Details:', error.message);
       console.warn('*******************************************\n');
     }
-  } else {
-     console.warn('Using default MemoryStore for sessions - not suitable for production.'); // Keep this warning if not in debug
   }
+  // The MemoryStore warning was here. It has been removed as sessions are not actively used.
+  // If sessions were to be implemented, a proper session store would be required for production.
 }); 

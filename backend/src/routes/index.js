@@ -1,6 +1,7 @@
 const express = require('express');
 const ticketRoutes = require('./tickets');
 const configController = require('../controllers/configController');
+const healthRoutes = require('./health'); // Import health routes
 
 const router = express.Router();
 
