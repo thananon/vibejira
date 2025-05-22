@@ -144,24 +144,6 @@ exports.searchTickets = asyncHandler(async (req, res) => {
   
   const results = await jiraService.searchIssues(searchJql, options);
 
-  // Temporary log to inspect customfield_15484 in fields and renderedFields
-  if (results && results.issues && results.issues.length > 0) {
-    console.log('Inspecting customfield_15484 for the first few tickets (fields vs renderedFields):');
-    results.issues.slice(0, 3).forEach(issue => {
-      console.log(`--- Ticket ${issue.key} ---`);
-      if (issue.fields && issue.fields.customfield_15484) {
-        console.log(`  fields.customfield_15484:`, JSON.stringify(issue.fields.customfield_15484, null, 2));
-      } else {
-        console.log(`  fields.customfield_15484: Not present or null.`);
-      }
-      if (issue.renderedFields && issue.renderedFields.customfield_15484) {
-        console.log(`  renderedFields.customfield_15484:`, JSON.stringify(issue.renderedFields.customfield_15484, null, 2));
-      } else {
-        console.log(`  renderedFields.customfield_15484: Not present or null.`);
-      }
-    });
-  }
-
   res.json(results);
 });
 
