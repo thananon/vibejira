@@ -137,7 +137,7 @@ exports.searchTickets = asyncHandler(async (req, res) => {
   }
 
   const options = { 
-    fields: fields || 'summary,status,issuetype,priority,created,updated,assignee,labels,customfield_16104', 
+    fields: fields || 'summary,status,issuetype,priority,created,updated,assignee,labels,customfield_16104,customfield_15484', 
     startAt: parseInt(startAt, 10) || 0, 
     maxResults: parseInt(maxResults, 10) || 50 
   };
