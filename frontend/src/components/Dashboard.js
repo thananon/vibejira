@@ -41,7 +41,7 @@ const Dashboard = () => {
 
   return (
     <>
-      <CCard>
+      <CCard style={{ width: '100%', minWidth: '1200px' }}>
         <CCardHeader>
           JIRA Ticket Dashboard
         </CCardHeader>

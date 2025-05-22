@@ -56,7 +56,7 @@ const TicketTable = ({
                   Status <SortIcon columnKey="fields.status.name" />
                 </CTableHeaderCell>
                 <CTableHeaderCell scope="col" onClick={() => requestSort('renderedFields.customfield_15484')} style={{ cursor: 'pointer' }}>
-                  Target SW Release <SortIcon columnKey="renderedFields.customfield_15484" />
+                  Release <SortIcon columnKey="renderedFields.customfield_15484" />
                 </CTableHeaderCell>
                 <CTableHeaderCell scope="col" onClick={() => requestSort('fields.assignee.displayName')} style={{ cursor: 'pointer' }}>
                   Assignee <SortIcon columnKey="fields.assignee.displayName" />
@@ -95,7 +95,7 @@ const TicketTable = ({
                     <CTableDataCell>
                       <CBadge color={statusColor}>{statusName || 'Unknown'}</CBadge>
                     </CTableDataCell>
-                    <CTableDataCell>{ticket.renderedFields?.customfield_15484 || ticket.fields?.customfield_15484 || 'N/A'}</CTableDataCell>
+                    <CTableDataCell>{ticket.renderedFields?.customfield_15484 || ticket.fields?.customfield_15484 || '-'}</CTableDataCell>
                     <CTableDataCell>{ticket.fields?.assignee?.displayName || 'Unassigned'}</CTableDataCell>
                     <CTableDataCell>
                       {ticket.fields?.updated ? formatDistanceToNow(new Date(ticket.fields.updated), { addSuffix: true }) : ''}
