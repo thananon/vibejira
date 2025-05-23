@@ -1,7 +1,6 @@
 /* Modern Card Styles */
 .summary-card {
   border-radius: 12px !important;
-  border: none !important;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -11,18 +10,19 @@
   display: flex;
   flex-direction: column;
   min-width: 100%;
+  background-clip: padding-box;
+  border: solid 5px transparent;
+  box-sizing: border-box;
 }
 
 .summary-card::before {
+  transition: all 0.3s ease;
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  top: 0; right: 0; bottom: 0; left: 0;
   z-index: -1;
-  border-radius: 12px;
+  border-radius: inherit; /* !importanté */
+  background: #212631 !important;
 }
 
 .summary-card:hover {
@@ -39,36 +39,36 @@
 }
 
 /* Card Variants */
-.warning-card {
+.warning-card:hover, .warning-card.active {
   background: linear-gradient(135deg, #ffb648 0%, #ff8a00 100%) !important;
-  color: #fff !important;
 }
 
-.info-card {
+.info-card:hover, .info-card.active {
   background: linear-gradient(135deg, #49a7e9 0%, #1e88e5 100%) !important;
-  color: #fff !important;
 }
 
-.danger-card {
+.danger-card:hover, .danger-card.active {
   background: linear-gradient(135deg, #ff5e62 0%, #ff2c55 100%) !important;
-  color: #fff !important;
 }
 
-.info-card-alt {
+.info-card-alt:hover, .info-card-alt.active {
   background: linear-gradient(135deg, #17a2b8 0%, #007bff 100%) !important;
-  color: #fff !important;
 }
 
-.success-card {
+.success-card:hover, .success-card.active {
   background: linear-gradient(135deg, #3edd6a 0%, #2bb673 100%) !important;
-  color: #fff !important;
 }
 
-.danger-card-alt {
+.danger-card-alt:hover, .danger-card-alt.active {
   background: linear-gradient(135deg, #fc6076 0%, #ff4b2b 100%) !important;
-  color: #fff !important;
 }
 
+.summary-card:hover .icon-container, .danger-card-alt.active .icon-container {
+  background-color: transparent !important;
+}
+.summary-card:not(:hover) .summary-icon {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
 /* Card Content Styles */
 .icon-container {
   margin-bottom: 10px;
@@ -90,7 +90,6 @@
 
 .summary-icon {
   filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.15));
-  color: rgba(255, 255, 255, 0.95) !important;
 }
 
 .summary-card .card-title {
