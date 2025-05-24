@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getStateFromLabels, getPriorityCategory } from '../utils'; // Assuming utils.js is in ../
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 export const useJiraTickets = (filters) => {
   const { selectedDateFilter, startDate, endDate, activeButtonFilter, activeAssigneeFilter } = filters;

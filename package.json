@@ -2,48 +2,20 @@
   "name": "vibejira-monorepo",
   "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "@coreui/coreui": "^5.0.2",
-    "@coreui/icons": "^3.0.1",
-    "@coreui/icons-react": "^2.2.1",
-    "@coreui/react": "^5.1.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-scripts": "5.0.1",
-    "web-vitals": "^4.0.0"
-  },
   "scripts": {
     "install:all": "npm run install:backend && npm run install:frontend",
     "install:backend": "cd backend && npm install",
     "install:frontend": "cd frontend && npm install",
     "postinstall": "npm run install:all",
-    "start:frontend": "cd frontend && npm start",
-    "start:backend": "cd backend && npm start",
-    "dev:frontend": "cd frontend && npm start",
+    "start:frontend": "cd frontend && npm run start",
+    "start:backend": "cd backend && npm run start",
+    "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "start": "concurrently \"npm:start:backend\" \"npm:start:frontend\"",
     "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
     "build:frontend": "cd frontend && npm run build",
-    "test:frontend": "cd frontend && npm test",
+    "test:frontend": "cd frontend && npm run test",
     "eject:frontend": "cd frontend && npm run eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
